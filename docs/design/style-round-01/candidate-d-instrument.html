@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 方向D 仪器</title>
+<style>
+  :root{
+    --bg:#F2F3F5; --panel:#FFFFFF; --panel-2:#E9EBEE;
+    --line:#C9CDD2; --line-soft:#E1E4E8;
+    --ink:#23272C; --ink-2:#596069; --ink-3:#8F97A0;
+    --accent:#D95A1E; --accent-soft:rgba(217,90,30,.09);
+    --ok:#3E7C59; --ok-dim:#8FBBA3;
+    --dark:#23272C; --dark-line:#3A4048;
+    --sans:'Dengxian','等线','Segoe UI','Microsoft YaHei',sans-serif;
+    --mono:'Consolas','Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans);overflow:hidden;display:flex;flex-direction:column}
+
+  /* ── 顶部仪表带 ─────────────────── */
+  .meter{height:66px;background:var(--dark);display:flex;align-items:center;gap:20px;padding:0 22px;flex:none}
+  .meter .logo{display:flex;align-items:center;gap:10px}
+  .meter .logo i{width:13px;height:13px;background:var(--accent)}
+  .meter .logo b{color:#fff;font-size:16.5px;letter-spacing:.04em}
+  .meter .logo span{color:#9AA3AB;font-size:12.5px;letter-spacing:.14em}
+  .meter .vdiv{width:1px;height:26px;background:var(--dark-line)}
+  .engines{display:flex;gap:24px}
+  .eng{display:flex;flex-direction:column;gap:2px}
+  .eng .row{display:flex;align-items:center;gap:6px}
+  .eng .dot{width:8px;height:8px;border-radius:50%;background:#566068;flex:none}
+  .eng.on .dot{background:#58A97C;box-shadow:0 0 6px rgba(88,169,124,.9)}
+  .eng em{font:10px var(--mono);font-style:normal;color:#9AA3AB;letter-spacing:.1em}
+  .eng small{font-size:10.5px;color:#6B737B}
+  .eng.on small{color:#8FBBA3}
+  .readout{margin-left:auto;font:12px var(--mono);color:var(--accent);letter-spacing:.08em;
+    border-left:2px solid var(--accent);padding-left:12px}
+
+  main{flex:1;padding:18px 22px 8px;display:flex;flex-direction:column;overflow:hidden}
+
+  .sec{display:flex;align-items:baseline;gap:12px;margin:2px 0 10px}
+  .sec em{font:10.5px var(--mono);font-style:normal;letter-spacing:.16em;color:var(--ink-3)}
+  .sec b{font-size:14px;letter-spacing:.2em;font-weight:700}
+  .sec i{flex:1;border-top:1px solid var(--line-soft)}
+
+  /* ── 工具矩阵 ───────────────────── */
+  .matrix{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  .cell{position:relative;height:102px;background:var(--panel);border:1px solid var(--line);padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s}
+  .cell:hover{border-color:var(--accent);background:#fff}
+  .cell .idx{position:absolute;top:9px;right:11px;font:11px var(--mono);color:var(--accent);letter-spacing:.06em}
+  .cell .key{position:absolute;bottom:9px;right:11px;font:9.5px var(--mono);color:var(--ink-3);letter-spacing:.06em}
+  .cell svg{display:block;margin:2px 0 7px;color:var(--ink)}
+  .cell:hover svg{color:var(--accent)}
+  .cell b{display:block;font-size:15px;font-weight:700}
+  .cell span{font-size:11.5px;color:var(--ink-2)}
+  .cell::before,.cell::after{content:'';position:absolute;width:8px;height:8px;border:0 solid var(--accent);opacity:0;transition:opacity .15s}
+  .cell::before{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px}
+  .cell::after{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px}
+  .cell:hover::before,.cell:hover::after{opacity:1}
+
+  /* ── 任务队列 ───────────────────── */
+  .queue{border:1px solid var(--line);background:var(--panel);margin-bottom:16px}
+  .queue .qhead{height:30px;background:var(--dark);display:flex;align-items:center;padding:0 14px;gap:12px}
+  .queue .qhead em{font:10.5px var(--mono);font-style:normal;letter-spacing:.18em;color:#9AA3AB}
+  .queue .qhead b{font-size:12px;color:#D7DCE1;letter-spacing:.14em}
+  .queue .qhead span{margin-left:auto;font:10px var(--mono);color:#6B737B}
+  .task{display:flex;align-items:center;gap:14px;height:46px;padding:0 14px;border-top:1px solid var(--line-soft)}
+  .task + .task{border-top:1px solid var(--line-soft)}
+  .state{font:10px var(--mono);letter-spacing:.1em;padding:2px 8px;border-radius:2px;flex:none}
+  .state.done{color:var(--ok);background:rgba(62,124,89,.09);border:1px solid rgba(62,124,89,.3)}
+  .state.run{color:var(--accent);background:var(--accent-soft);border:1px solid rgba(217,90,30,.35)}
+  .task .fname{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+  .task .pipe{font:12px var(--mono);color:var(--ink-3);flex:none}
+  .task .target{font-size:12.5px;color:var(--ink-2)}
+  .ticks{margin-left:auto;display:flex;gap:3px}
+  .ticks i{width:15px;height:9px;background:var(--panel-2);border:1px solid var(--line-soft)}
+  .ticks.d i{background:var(--ok-dim);border-color:var(--ok-dim)}
+  .ticks.r i.on{background:var(--accent);border-color:var(--accent)}
+  .ticks.r i.cur{background:var(--accent);border-color:var(--accent);opacity:.45}
+  .task .num{font:12px var(--mono);color:var(--ink-2);flex:none;width:150px;text-align:right}
+  .task .num.hot{color:var(--accent)}
+
+  /* ── 最近文档 ───────────────────── */
+  .recent{border:1px solid var(--line);background:var(--panel)}
+  .rhead,.rrow{display:grid;grid-template-columns:1fr 90px 130px 110px;gap:12px;align-items:center;padding:0 14px}
+  .rhead{height:26px;border-bottom:1px solid var(--line-soft);font:10px var(--mono);letter-spacing:.12em;color:var(--ink-3)}
+  .rhead :nth-child(n+2){text-align:right}
+  .rrow{height:33px;border-top:1px solid var(--line-soft);font-size:13px;cursor:pointer}
+  .rrow:first-of-type{border-top:0}
+  .rrow:hover{background:var(--accent-soft)}
+  .rrow :nth-child(n+2){font:12px var(--mono);color:var(--ink-2);text-align:right}
+  .rrow .enc{color:var(--accent)}
+  .rrow .conv{color:var(--ok)}
+
+  footer{margin-top:auto;display:flex;align-items:center;height:34px;font:10.5px var(--mono);color:var(--ink-3);letter-spacing:.1em}
+  footer .right{margin-left:auto;color:#C0795A}
+</style>
+</head>
+<body>
+
+  <header class="meter">
+    <div class="logo"><i></i><b>Zhanlu</b><span>湛卢</span></div>
+    <div class="vdiv"></div>
+    <div class="engines">
+      <div class="eng on"><div class="row"><span class="dot"></span><em>OFFICE</em></div><small>已连接</small></div>
+      <div class="eng"><div class="row"><span class="dot"></span><em>LIBREOFFICE</em></div><small>未安装</small></div>
+      <div class="eng"><div class="row"><span class="dot"></span><em>AI MODEL</em></div><small>未配置</small></div>
+      <div class="eng on"><div class="row"><span class="dot"></span><em>OCR ENGINE</em></div><small>AI 视觉 · 就绪</small></div>
+    </div>
+    <div class="readout">READY · 1 RUNNING</div>
+  </header>
+
+  <main>
+    <div class="sec"><em>MATRIX</em><b>工具矩阵</b><i></i></div>
+    <div class="matrix">
+      <div class="cell"><span class="idx">01</span><span class="key">CTRL+1</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h10l4 4v10H4z"/><path d="M14 4v4h4M8 12h6M8 15.5h4"/></svg>
+        <b>打开文档</b><span>PDF · OFD · 加密</span></div>
+      <div class="cell"><span class="idx">02</span><span class="key">CTRL+2</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8h11m0 0-3.2-3.2M15 8l-3.2 3.2M18 14H7m0 0 3.2-3.2M7 14l3.2 3.2"/></svg>
+        <b>转换中心</b><span>Office · 图片 · MD</span></div>
+      <div class="cell"><span class="idx">03</span><span class="key">CTRL+3</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h6v12H4zM12 5h6v5h-6zM12 12h6v5h-6z"/></svg>
+        <b>合并</b><span>多文件 · 排序</span></div>
+      <div class="cell"><span class="idx">04</span><span class="key">CTRL+4</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 4h9v14H9zM9 11H4M4 11l2.5-2.5M4 11l2.5 2.5"/></svg>
+        <b>拆分</b><span>页码 · 大小 · 书签</span></div>
+      <div class="cell"><span class="idx">05</span><span class="key">CTRL+5</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6V4.5A.5.5 0 0 1 4.5 4H6M16 4h1.5a.5.5 0 0 1 .5.5V6M18 16v1.5a.5.5 0 0 1-.5.5H16M6 18H4.5a.5.5 0 0 1-.5-.5V16"/><path d="M7 8.5h8M7 11.5h5M7 14.5h6"/></svg>
+        <b>OCR 识别</b><span>→ 可搜索 PDF</span></div>
+      <div class="cell"><span class="idx">06</span><span class="key">CTRL+6</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="5" width="14" height="12"/><path d="M4 9h14M10 9v8M4 13h14"/></svg>
+        <b>提取表格</b><span>→ Excel / CSV</span></div>
+      <div class="cell"><span class="idx">07</span><span class="key">CTRL+7</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5h12M5 9h7M5 13h9M5 17h5"/><circle cx="17" cy="9" r="1.2"/><circle cx="15" cy="13" r="1.2"/><circle cx="12" cy="17" r="1.2"/></svg>
+        <b>提取目录</b><span>→ 含页码大纲</span></div>
+      <div class="cell"><span class="idx">08</span><span class="key">CTRL+8</span>
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 3v4M11 15v4M3 11h4M15 11h4M5.6 5.6l2.8 2.8M13.6 13.6l2.8 2.8M16.4 5.6l-2.8 2.8M8.4 13.6l-2.8 2.8"/><circle cx="11" cy="11" r="2"/></svg>
+        <b>AI 助手</b><span>自配大模型</span></div>
+    </div>
+
+    <div class="sec"><em>QUEUE</em><b>任务队列</b><i></i></div>
+    <div class="queue">
+      <div class="qhead"><em>TASK QUEUE</em><b>湛卢 · 本机处理</b><span>1 RUNNING · 1 DONE</span></div>
+      <div class="task">
+        <span class="state done">DONE</span>
+        <span class="fname">湛卢-功能清单.pdf</span>
+        <span class="pipe">→</span><span class="target">DOCX</span>
+        <span class="ticks d"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="num">6 页 · 00:12</span>
+      </div>
+      <div class="task">
+        <span class="state run">RUN</span>
+        <span class="fname">购房合同（扫描件）.pdf</span>
+        <span class="pipe">→</span><span class="target">可搜索 PDF（OCR）</span>
+        <span class="ticks r"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="cur"></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="num hot">42% · 03:07</span>
+      </div>
+    </div>
+
+    <div class="sec"><em>RECENT</em><b>最近文档</b><i></i></div>
+    <div class="recent">
+      <div class="rhead"><span>FILE</span><span>PAGES</span><span>MODIFIED</span><span>STATUS</span></div>
+      <div class="rrow"><span>2026年度审计报告.pdf</span><span>86</span><span>昨日 16:42</span><span>—</span></div>
+      <div class="rrow"><span>湛卢-功能清单.pdf</span><span>6</span><span>今日 09:15</span><span class="conv">已转 DOCX</span></div>
+      <div class="rrow"><span>购房合同（扫描件）.pdf</span><span>12</span><span>三日前</span><span class="enc">加密 · OCR中</span></div>
+      <div class="rrow"><span>员工手册.ofd</span><span>45</span><span>10-12 11:08</span><span>—</span></div>
+      <div class="rrow"><span>产品需求文档 v3.2.docx</span><span>24</span><span>周二 20:31</span><span>—</span></div>
+    </div>
+
+    <footer>
+      <span>ZHANLU 0.1.0</span><span>LOCAL-ONLY · 纯本地 · 无遥测</span>
+      <span class="right">■ ENGINE READY</span>
+    </footer>
+  </main>
+</body>
+</html>

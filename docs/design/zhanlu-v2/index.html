@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="zhanlu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>湛卢 · 文档工作台设计原型</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="file-picker.css">
+  <link rel="stylesheet" href="operation.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="titlebar">
+      <button class="brand" id="brand" title="返回开始页"><span class="brand-symbol">湛</span><span>湛卢</span></button>
+      <div class="doc-tabs" aria-label="已打开文档">
+        <button class="doc-tab active"><span class="pdf-dot">PDF</span><span id="tabName">产品评审纪要.pdf</span><span class="tab-close" title="关闭文档">×</span></button>
+        <button class="new-tab" id="newTab" title="打开文件">＋</button>
+      </div>
+      <div class="title-actions">
+        <a class="icon-button color-link" href="palette.html" title="比较配色">配色</a>
+        <button class="icon-button command-trigger" id="commandTrigger" title="搜索工具 Ctrl+K"><span class="magnify"></span><span>查找功能</span><kbd>Ctrl K</kbd></button>
+        <button class="icon-button task-trigger" id="taskTrigger" title="任务队列"><span class="task-glyph">▤</span><span>任务</span></button>
+        <span class="title-divider"></span>
+        <button class="icon-button" id="settingsTrigger" title="设置">⚙</button>
+      </div>
+    </header>
+
+    <div id="workspace" class="workspace">
+      <nav class="modebar" aria-label="工作模式">
+        <div class="mode-list" id="modeList">
+          <button data-mode="read" class="active">阅读</button>
+          <button data-mode="pages">页面</button>
+          <button data-mode="convert">转换</button>
+          <button data-mode="ai" class="ai-mode"><span class="ai-star">✦</span> AI</button>
+        </div>
+        <div class="mode-end">
+          <span class="local-indicator"><i></i>本地文档</span>
+          <button id="saveButton" class="save-button">保存 <kbd>Ctrl S</kbd></button>
+        </div>
+      </nav>
+
+      <div class="toolrow">
+        <div class="toolrow-content" id="toolrowContent"></div>
+        <button class="more-tools" id="moreTools">更多工具 <span>⌄</span></button>
+      </div>
+
+      <div class="workbody">
+        <aside class="navpanel" id="navpanel">
+          <div class="panel-topline">
+            <div class="nav-switch" id="navSwitch">
+              <button data-nav="pages" class="active">缩略图</button>
+              <button data-nav="outline">目录</button>
+              <button data-nav="search">查找</button>
+            </div>
+            <button id="hideNav" class="panel-collapse" title="隐藏左侧栏">‹</button>
+          </div>
+          <div id="navContent" class="nav-content"></div>
+        </aside>
+
+        <main class="document-stage" id="documentStage">
+          <button id="showNav" class="show-nav" title="显示导航">☰</button>
+          <div class="page-rail" id="pageRail">
+            <article class="paper" id="paper">
+              <div class="paper-kicker">内部文档 · 产品管理</div>
+              <h1>产品评审纪要</h1>
+              <div class="paper-meta"><span>2026 / 10 / 24</span><span>第 3 页 / 共 24 页</span></div>
+              <div class="paper-rule"></div>
+              <h2>01　设计目标</h2>
+              <p>让常用的 PDF 工作在同一个文档视图中完成。阅读时，页面是中心；需要处理时，工具出现在当前任务附近，操作结果先预览再保存。</p>
+              <p>应用默认在本机处理文件。耗时任务在后台运行，阅读和定位不需要等待转换或识别完成。</p>
+              <h2>02　主要决定</h2>
+              <ul>
+                <li>切换任务时保留页码、缩放与搜索状态。</li>
+                <li>页面与转换使用一致的预览与确认方式。</li>
+                <li>AI 输出可追溯到来源页，由用户决定是否采用。</li>
+              </ul>
+              <div class="paper-callout"><strong>下一步</strong><span>确认操作路径与功能归属后，按真实文档逐项验收。</span></div>
+              <h2>03　验收关注</h2>
+              <p>桌面宽度变化时，文档保持清晰可读；左侧定位栏与右侧工具栏都能独立收起，给页面留出足够空间。</p>
+              <div class="paper-footer"><span>湛卢 · 工作文档</span><span>03</span></div>
+            </article>
+          </div>
+        </main>
+
+        <aside class="detailpanel" id="detailpanel" hidden>
+          <div class="detail-head"><div><small id="detailEyebrow">文档助手</small><h2 id="detailTitle">AI 助手</h2></div><button id="closeDetail" title="关闭侧栏">×</button></div>
+          <div class="detail-content" id="detailContent"></div>
+        </aside>
+      </div>
+
+      <footer class="statusbar">
+        <div class="status-left"><span id="statusName">产品评审纪要.pdf</span><span class="status-dot">•</span><span id="statusSave">已保存</span></div>
+        <div class="status-right"><button id="prevPage" title="上一页">‹</button><span><strong id="currentPage">3</strong> / 24</span><button id="nextPage" title="下一页">›</button><span class="status-separator"></span><button id="zoomOut" title="缩小">−</button><span id="zoomValue">100%</span><button id="zoomIn" title="放大">＋</button><button id="fitWidth">适应宽度</button></div>
+      </footer>
+    </div>
+
+    <div id="home" class="home" hidden>
+      <div class="home-inner">
+        <div class="home-heading"><div><span class="home-label">本地 PDF 工作台</span><h1>从文档开始。</h1><p>阅读、整理页面、转换和 AI，始终留在同一个工作区。</p></div><button class="open-main" id="homeOpen">打开文档 <span>↗</span></button></div>
+        <div class="home-section-title">最近打开 <span>仅保存在本机</span></div>
+        <div class="home-files"><button class="home-file" data-open="产品评审纪要.pdf"><span class="file-symbol">PDF</span><span><strong>产品评审纪要.pdf</strong><small>24 页 · 上次阅读到第 3 页</small></span><em>继续阅读 →</em></button><button class="home-file" data-open="采购协议.pdf"><span class="file-symbol">PDF</span><span><strong>采购协议.pdf</strong><small>18 页 · 上次阅读到第 1 页</small></span><em>继续阅读 →</em></button></div>
+        <div class="home-section-title home-tools-title">直接处理 <span>不必先打开工具中心</span></div>
+        <div class="home-shortcuts"><button data-start="convert">格式转换 <span>→</span></button><button data-start="merge">合并 PDF <span>→</span></button><button data-start="split">拆分 PDF <span>→</span></button><button data-start="ai">AI 阅读 <span>→</span></button></div>
+      </div>
+    </div>
+
+    <div id="operation" class="operation" hidden>
+      <div class="operation-inner">
+        <div class="operation-crumb"><button id="opHome">首页工作台</button><span>／</span><strong id="opKind">合并 PDF</strong></div>
+        <div class="operation-heading"><div><small>本地任务 · 原文件保留</small><h1 id="opTitle">合并 PDF</h1><p id="opSubtitle">添加文件，调整顺序并设置输出。</p></div><span>独立任务工作区</span></div>
+        <div id="opContent"></div>
+      </div>
+    </div>
+
+    <div id="toolPalette" class="palette-backdrop" hidden><div class="palette" role="dialog" aria-modal="true" aria-label="查找功能"><div class="palette-search"><span class="magnify"></span><input id="paletteInput" placeholder="搜索工具或操作，例如“压缩 PDF”"><kbd>Esc</kbd></div><div id="paletteResults" class="palette-results"></div><div class="palette-foot">输入名称快速定位 · 设计原型</div></div></div>
+    <div id="filePicker" class="file-picker-backdrop" hidden>
+      <div class="file-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="filePickerTitle">
+        <button id="filePickerClose" class="file-picker-close" aria-label="关闭">×</button>
+        <h2 id="filePickerTitle">选择本地文件</h2>
+        <p id="filePickerHint">先选择文件，再进入工作区。</p>
+        <button id="fileDrop" class="file-drop" type="button"><span>＋</span><strong id="fileDropLabel">点击选择本地文件</strong><small>文件仅在本机处理</small></button>
+        <p id="filePickerFoot">设计原型仅展示文件选择与任务流程，不处理真实文件。</p>
+        <input id="fileInput" type="file" accept=".pdf,application/pdf" hidden>
+      </div>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div class="prototype-tag">交互设计原型 · 不处理真实文件</div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 玄铁 设计变量</title>
+<style>
+  :root{
+    --bg:#0B0F13;--panel:#12181F;--panel-2:#161E26;--canvas:#0E1319;
+    --line:#232D37;--line-hi:#33434F;
+    --ink:#C9D5DF;--ink-hi:#E4EDF3;--ink-2:#84929F;--ink-3:#586673;
+    --glow:#6FB6C8;--glow-soft:rgba(111,182,200,.12);--glow-line:rgba(111,182,200,.45);
+    --ok:#6FA98C;--ok-soft:rgba(111,169,140,.12);
+    --warn:#C2A15C;--warn-soft:rgba(194,161,92,.12);
+    --danger:#C47A6E;--danger-soft:rgba(196,122,110,.12);
+    --mono:'Consolas','Courier New',monospace;
+    --sans:'Segoe UI','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans);overflow:hidden;padding:34px 44px}
+  :focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+
+  h1{font-size:22px;font-weight:600;letter-spacing:.12em;color:var(--ink-hi)}
+  .sub{font:11px var(--mono);color:var(--ink-3);letter-spacing:.2em;margin:4px 0 22px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:26px 40px}
+  section h2{font-size:13px;color:var(--ink-2);letter-spacing:.28em;font-weight:600;border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+  .swatches{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .sw{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+  .sw i{display:block;height:44px}
+  .sw .t{padding:5px 8px}
+  .sw b{display:block;font-size:11px;color:var(--ink);font-family:var(--mono)}
+  .sw span{display:block;font-size:10px;color:var(--ink-3);line-height:1.35}
+
+  .type-row{display:flex;align-items:baseline;gap:16px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .type-row:last-child{border:0}
+  .type-row .demo{color:var(--ink-hi)}
+  .type-row .spec{margin-left:auto;font:11px var(--mono);color:var(--ink-3);white-space:nowrap;text-align:right}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--ink);font-size:13px;cursor:pointer;transition:border-color .15s,background .15s,transform .1s}
+  .btn:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--glow);border-color:var(--glow);color:#0B0F13;font-weight:600}
+  .btn.primary:hover{background:#82C2D3}
+  .btn.ghost{background:transparent;color:var(--ink-2)}
+  .btn.ghost:hover{color:var(--ink);border-color:var(--line-hi);background:transparent}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+  .chip{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:13px;cursor:pointer;transition:border-color .15s,background .15s,transform .1s}
+  .chip:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  .chip:active{transform:scale(.97)}
+  .chip.on{border-color:var(--glow);background:var(--glow-soft);color:var(--ink-hi)}
+  .chip .k{font:10.5px var(--mono);color:var(--ink-3)}
+
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;color:var(--ink-2)}
+  .input{height:36px;padding:0 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:13px var(--sans);display:flex;align-items:center;min-width:220px}
+  .input.mono{font-family:var(--mono);font-size:12.5px}
+
+  .badge{display:inline-flex;align-items:center;font:10.5px var(--mono);letter-spacing:.1em;padding:2px 8px;border-radius:4px;border:1px solid var(--line);color:var(--ink-2)}
+  .badge.fmt{color:var(--glow);border-color:var(--glow-line);background:rgba(11,15,19,.6)}
+  .badge.ok{color:var(--ok);border-color:rgba(111,169,140,.4);background:var(--ok-soft)}
+  .badge.warn{color:var(--warn);border-color:rgba(194,161,92,.4);background:var(--warn-soft)}
+  .badge.danger{color:var(--danger);border-color:rgba(196,122,110,.4);background:var(--danger-soft)}
+
+  .dots{display:flex;gap:18px;align-items:center;font-size:12px;color:var(--ink-2)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#3A4650;vertical-align:1px}
+  .dot.ok{background:var(--ok);box-shadow:0 0 6px rgba(111,169,140,.8)}
+  .dot.warn{background:var(--warn)}
+  .dot.danger{background:var(--danger)}
+
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px;position:relative}
+  .seg span{padding:5px 16px;font-size:13px;color:var(--ink-2);border-radius:6px;cursor:pointer}
+  .seg span.on{background:var(--glow-soft);color:var(--ink-hi);box-shadow:inset 0 0 0 1px var(--glow-line)}
+
+  .switch{width:38px;height:21px;border-radius:11px;background:#2A343E;position:relative;cursor:pointer;transition:background .2s}
+  .switch::after{content:'';position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#7E8C99;transition:transform .18s cubic-bezier(.2,.7,.3,1),background .18s}
+  .switch.on{background:rgba(111,182,200,.35)}
+  .switch.on::after{transform:translateX(17px);background:var(--glow)}
+
+  .ticks{display:flex;gap:3px}
+  .ticks i{width:15px;height:9px;background:#1B232C;border:1px solid var(--line);border-radius:1px}
+  .ticks i.on{background:var(--glow);border-color:var(--glow)}
+  .ticks.d i.on{background:var(--ok);border-color:var(--ok)}
+
+  .kbd{font:10.5px var(--mono);color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+  .motion{display:flex;flex-direction:column;gap:9px}
+  .mo{display:flex;gap:12px;align-items:baseline;font-size:12.5px;color:var(--ink-2)}
+  .mo b{color:var(--ink);font-size:13px;white-space:nowrap}
+  .mo code{font:11px var(--mono);color:var(--glow)}
+  .demo-sheen{position:relative;width:170px;height:52px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(160deg,#1B242D,#131A21);overflow:hidden;cursor:pointer}
+  .demo-sheen::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 42%,rgba(140,206,222,.18) 50%,transparent 58%);background-size:260% 100%;background-position:110% 0;transition:background-position .55s ease}
+  .demo-sheen:hover::after{background-position:-10% 0}
+  .demo-sheen span{position:absolute;left:12px;top:18px;font-size:12px;color:var(--ink-2)}
+
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .rise>*{animation:rise .3s cubic-bezier(.2,.7,.3,1) both}
+  .rise>*:nth-child(1){animation-delay:.02s}.rise>*:nth-child(2){animation-delay:.07s}.rise>*:nth-child(3){animation-delay:.12s}
+  .rise>*:nth-child(4){animation-delay:.17s}.rise>*:nth-child(5){animation-delay:.22s}.rise>*:nth-child(6){animation-delay:.27s}
+</style>
+</head>
+<body class="rise">
+  <h1>湛卢 · 玄铁 设计变量</h1>
+  <div class="sub">ZHANLU IRON DESIGN TOKENS · v1.0 · 2026-10-23</div>
+
+  <div class="grid">
+    <section>
+      <h2>色彩 COLOR</h2>
+      <div class="swatches">
+        <div class="sw"><i style="background:#0B0F13"></i><div class="t"><b>--bg</b><span>#0B0F13 · 应用底</span></div></div>
+        <div class="sw"><i style="background:#12181F"></i><div class="t"><b>--panel</b><span>#12181F · 面板/导航</span></div></div>
+        <div class="sw"><i style="background:#161E26"></i><div class="t"><b>--panel-2</b><span>#161E26 · 浮起/悬停</span></div></div>
+        <div class="sw"><i style="background:#0E1319"></i><div class="t"><b>--canvas</b><span>#0E1319 · 阅读画布</span></div></div>
+        <div class="sw"><i style="background:#232D37"></i><div class="t"><b>--line</b><span>#232D37 · 描边</span></div></div>
+        <div class="sw"><i style="background:#33434F"></i><div class="t"><b>--line-hi</b><span>#33434F · 描边·悬停</span></div></div>
+        <div class="sw"><i style="background:#E4EDF3"></i><div class="t"><b>--ink-hi</b><span>#E4EDF3 · 标题字</span></div></div>
+        <div class="sw"><i style="background:#C9D5DF"></i><div class="t"><b>--ink</b><span>#C9D5DF · 正文字</span></div></div>
+        <div class="sw"><i style="background:#84929F"></i><div class="t"><b>--ink-2</b><span>#84929F · 次要字</span></div></div>
+        <div class="sw"><i style="background:#586673"></i><div class="t"><b>--ink-3</b><span>#586673 · 等宽标签·禁用</span></div></div>
+        <div class="sw"><i style="background:#6FB6C8"></i><div class="t"><b>--glow</b><span>#6FB6C8 · 剑光青·主强调</span></div></div>
+        <div class="sw"><i style="background:#6FA98C"></i><div class="t"><b>--ok</b><span>#6FA98C · 就绪/完成</span></div></div>
+        <div class="sw"><i style="background:#C2A15C"></i><div class="t"><b>--warn</b><span>#C2A15C · 待装/注意</span></div></div>
+        <div class="sw"><i style="background:#C47A6E"></i><div class="t"><b>--danger</b><span>#C47A6E · 加密/错误</span></div></div>
+      </div>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:10px">正文最低用 --ink-2（对比度 ≥5:1）；--ink-3 仅用于等宽标签与禁用态。强调色预算：--glow 面积 ≤10%。</p>
+    </section>
+
+    <section>
+      <h2>字体 TYPE · 间距 SPACE</h2>
+      <div class="type-row"><span class="demo" style="font-size:22px;font-weight:600;letter-spacing:.1em">湛卢 工具箱</span><span class="spec">22/600 · ls .1em · 屏幕标题</span></div>
+      <div class="type-row"><span class="demo" style="font-size:15px;font-weight:600">继续案头 · 转换中心</span><span class="spec">15/600 · 区块标题</span></div>
+      <div class="type-row"><span class="demo" style="font-size:14px">正文与操作文字，中文行高 1.6。</span><span class="spec">14/400 · 正文/按钮</span></div>
+      <div class="type-row"><span class="demo" style="font-size:12.5px;color:var(--ink-2)">辅助说明与次要信息</span><span class="spec">12.5 · 辅助</span></div>
+      <div class="type-row"><span class="demo" style="font:10.5px var(--mono);color:var(--ink-3);letter-spacing:.12em">PAGES 86 · 00:12 · READY</span><span class="spec">10.5 mono · 标签/读数</span></div>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:10px">间距 4px 网格：组内 8/12，组间 20/24/32。圆角 10（卡片）/ 8（按钮·输入）/ 6（分段）/ 4（徽章·kbd）。系统字体栈，上线换思源黑体。</p>
+    </section>
+
+    <section>
+      <h2>控件 CONTROLS</h2>
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn primary">开始转换</button>
+        <button class="btn">加入队列</button>
+        <button class="btn ghost">测试连接</button>
+        <button class="btn" disabled>未配置</button>
+        <button class="chip">合并 <span class="k">M</span></button>
+        <button class="chip on">提取表格</button>
+      </div>
+      <div class="row" style="margin-bottom:12px">
+        <div class="field"><label>BaseURL</label><div class="input mono">https://api.deepseek.com/v1</div></div>
+        <div class="field"><label>页码范围</label><div class="input">全部页面</div></div>
+        <div class="seg"><span>缩略图</span><span class="on">书签</span><span>搜索</span></div>
+        <div class="switch on" title="启用"></div>
+      </div>
+      <div class="row">
+        <span class="badge fmt">PDF</span><span class="badge fmt">OFD</span><span class="badge fmt">DOCX</span>
+        <span class="badge ok">已连通</span><span class="badge warn">未安装</span><span class="badge danger">已加密</span>
+        <span class="kbd">Ctrl K</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>动效 MOTION · 咔嗒/金属</h2>
+      <div class="motion">
+        <div class="mo"><b>按下咔嗒</b><code>scale .97 · 150ms · cubic-bezier(.2,.7,.3,1)</code>所有按钮/缩略卡，按下立即生效</div>
+        <div class="mo"><b>剑光扫过</b><code>background-position · 550ms ease</code>悬停文档卡时一道斜向青光——品牌时刻</div>
+        <div class="mo"><b>首次出场</b><code>rise 6px · 每项 +50ms · 总长 ≤600ms</code>主角（当前工作区）先到，侧栏与列表随后；仅首次进入播放</div>
+        <div class="mo"><b>面板滑入</b><code>translateX · 250–350ms</code>侧面板从所在一侧滑入，关闭走 60% 时长加速曲线</div>
+        <div class="mo"><b>选中滑块</b><code>分段控件底板滑动 · 180ms</code>标签页共用一块会移动的底板，禁止旧灭新亮</div>
+        <div style="display:flex;gap:14px;align-items:center;margin-top:6px">
+          <div class="demo-sheen"><span>悬停我 · 剑光</span></div>
+          <div class="ticks d"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+          <span style="font:11px var(--mono);color:var(--ink-3)">任务刻度 7/10</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

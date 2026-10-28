@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="128" viewBox="0 0 560 128" role="img" aria-label="湛卢 PDF，深色背景用">
+  <g transform="translate(0 8) scale(.875)">
+    <path d="M64 16 54 39l5 31 5 5 5-5 5-31-10-23Z" fill="#F4F1EB"/>
+    <path d="M64 26v45" stroke="#C7AD97" stroke-width="2" stroke-linecap="round"/>
+    <path d="M36 73h56l-8 9H44l-8-9Z" fill="#F4F1EB"/>
+    <path d="M60 82h8v18h-8z" fill="#F4F1EB"/>
+    <path d="m64 101 9 9-9 9-9-9 9-9Z" fill="#9A6549"/>
+  </g>
+  <text x="136" y="79" fill="#F4F1EB" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="58" font-weight="700">湛卢 PDF</text>
+  <text x="139" y="109" fill="#C7BEB3" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="500" letter-spacing="3">LOCAL PDF WORKSPACE</text>
+</svg>

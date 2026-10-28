@@ -1,0 +1,35 @@
+/* Figma: 湛卢 PDF · MVP 视觉系统与核心界面 / 01 · 视觉系统 */
+:root {
+  --z-ink: #2b2622;
+  --z-text: #242321;
+  --z-muted: #746f69;
+  --z-line: #ded9d1;
+  --z-canvas: #f4f1eb;
+  --z-surface: #fff;
+  --z-warm: #ece6dc;
+  --z-accent: #9a6549;
+  --z-accent-soft: #f3e9e1;
+  --z-success: #437966;
+  --z-warning: #ad7130;
+  --z-error: #b44840;
+
+  --bg: var(--z-canvas);
+  --panel: var(--z-surface);
+  --panel-2: #fbfaf8;
+  --canvas: #eae4da;
+  --line: var(--z-line);
+  --line-hi: #c6bfb6;
+  --ink: var(--z-text);
+  --ink-hi: var(--z-ink);
+  --ink-2: var(--z-muted);
+  --ink-3: #938c84;
+  --glow: var(--z-ink);
+  --glow-soft: var(--z-accent-soft);
+  --glow-line: #cba98f;
+  --ok: var(--z-success);
+  --ok-soft: #e9f2ed;
+  --warn: var(--z-warning);
+  --warn-soft: #f9efe2;
+  --danger: var(--z-error);
+  --danger-soft: #faecea;
+}

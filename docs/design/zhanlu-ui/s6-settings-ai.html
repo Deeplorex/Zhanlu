@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 设置 · AI 模型</title>
+<style>
+  :root{
+    --bg:#0B0F13;--panel:#12181F;--panel-2:#161E26;--canvas:#0E1319;
+    --line:#232D37;--line-hi:#33434F;
+    --ink:#C9D5DF;--ink-hi:#E4EDF3;--ink-2:#84929F;--ink-3:#586673;
+    --glow:#6FB6C8;--glow-soft:rgba(111,182,200,.12);--glow-line:rgba(111,182,200,.45);
+    --ok:#6FA98C;--ok-soft:rgba(111,169,140,.12);
+    --warn:#C2A15C;--danger:#C47A6E;
+    --mono:'Consolas','Courier New',monospace;
+    --sans:'Segoe UI','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans);overflow:hidden;display:flex}
+  :focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .spine{width:76px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0 14px;flex:none}
+  .sword{height:88px;display:flex;flex-direction:column;align-items:center;margin-bottom:26px}
+  .sword .pommel{width:5px;height:5px;border-radius:50%;background:#9FB6C0}
+  .sword .grip{width:2px;height:10px;background:#5A6B76}
+  .sword .guard{width:22px;height:2px;background:#8FA5B0;margin:1px 0}
+  .sword .blade{width:2px;height:58px;background:linear-gradient(180deg,#D9E6EC,#7FA8B6 60%,#3E5460)}
+  .sword .point{width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:7px solid #D9E6EC}
+  .spine nav{display:flex;flex-direction:column;gap:6px;flex:1}
+  .spine nav a{width:46px;height:46px;display:flex;align-items:center;justify-content:center;color:var(--ink-3);position:relative;border-radius:9px;transition:color .18s,background .18s}
+  .spine nav a:hover{color:var(--ink);background:var(--panel-2)}
+  .spine nav a.on{color:var(--glow);background:var(--glow-soft)}
+  .spine nav a.on::before{content:'';position:absolute;left:-15px;top:12px;bottom:12px;width:2px;background:var(--glow);border-radius:2px;box-shadow:0 0 8px rgba(111,182,200,.7)}
+  .spine-foot{font:10px var(--mono);color:var(--ink-3)}
+
+  main{flex:1;display:flex;min-width:0}
+  .snav{width:216px;background:var(--panel);border-right:1px solid var(--line);padding:22px 12px;display:flex;flex-direction:column;gap:3px}
+  .snav .cap{font:10.5px var(--mono);color:var(--ink-3);letter-spacing:.22em;padding:0 12px;margin-bottom:8px}
+  .snav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--ink-2);font-size:13.5px;cursor:pointer;position:relative}
+  .snav a:hover{color:var(--ink);background:var(--panel-2)}
+  .snav a.on{color:var(--glow);background:var(--glow-soft)}
+  .snav a.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:2px;background:var(--glow);border-radius:2px}
+
+  .content{flex:1;padding:26px 34px;overflow:auto;min-width:0}
+  .content h1{font-size:19px;font-weight:600;letter-spacing:.08em;color:var(--ink-hi);animation:rise .3s cubic-bezier(.2,.7,.3,1) both}
+  .content .sub{font-size:12.5px;color:var(--ink-3);margin:2px 0 20px;animation:rise .3s cubic-bezier(.2,.7,.3,1) .04s both}
+
+  .cfgs{display:flex;flex-direction:column;gap:9px;margin-bottom:20px;animation:rise .3s cubic-bezier(.2,.7,.3,1) .08s both}
+  .cfg{display:flex;align-items:center;gap:13px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 16px;cursor:pointer;transition:border-color .15s}
+  .cfg:hover{border-color:var(--line-hi)}
+  .cfg.on{border-color:var(--glow-line);background:var(--glow-soft)}
+  .cfg .dot{width:8px;height:8px;border-radius:50%;background:#3A4650;flex:none}
+  .cfg.on .dot{background:var(--ok);box-shadow:0 0 7px rgba(111,169,140,.8)}
+  .cfg b{font-size:14px;font-weight:600;color:var(--ink-hi)}
+  .cfg .meta{font:11.5px var(--mono);color:var(--ink-3)}
+  .cfg .badge{margin-left:auto;font:10.5px var(--mono);color:var(--ok);border:1px solid rgba(111,169,140,.4);background:var(--ok-soft);border-radius:4px;padding:2px 8px;letter-spacing:.08em}
+  .cfg .ops{display:flex;gap:4px;margin-left:8px}
+  .cfg .ops span{font-size:12px;color:var(--ink-3);padding:3px 8px;border-radius:6px;cursor:pointer}
+  .cfg .ops span:hover{color:var(--ink);background:var(--panel-2)}
+  .cfg-add{display:flex;align-items:center;gap:9px;border:1.5px dashed var(--line-hi);border-radius:10px;padding:12px 16px;color:var(--ink-2);font-size:13.5px;cursor:pointer;transition:border-color .15s,color .15s}
+  .cfg-add:hover{border-color:var(--glow-line);color:var(--glow)}
+
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;animation:rise .3s cubic-bezier(.2,.7,.3,1) .12s both}
+  .form h2{font-size:14px;font-weight:600;color:var(--ink-hi);margin-bottom:16px;letter-spacing:.06em}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:6px}
+  .field .req{color:var(--glow)}
+  .input{height:38px;background:var(--canvas);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;padding:0 12px;color:var(--ink);font-size:13px}
+  .input.mono{font:12.5px var(--mono)}
+  .input.focus{border-color:var(--glow-line);box-shadow:0 0 0 3px var(--glow-soft)}
+  .input .eye{margin-left:auto;color:var(--ink-3);cursor:pointer;font-size:12px}
+  .input .suffix{margin-left:auto;font:11px var(--mono);color:var(--ink-3)}
+  .slider-row{display:flex;align-items:center;gap:12px}
+  .slider{flex:1;height:4px;background:#1B232C;border-radius:2px;position:relative}
+  .slider i{position:absolute;left:0;top:0;bottom:0;width:35%;background:var(--glow);border-radius:2px}
+  .slider .knob{position:absolute;left:35%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--glow);box-shadow:0 0 0 3px var(--glow-soft)}
+  .slider-val{font:12.5px var(--mono);color:var(--glow);width:34px;text-align:right}
+  .kv{display:flex;gap:9px;margin-bottom:8px}
+  .kv .input{height:34px;font-size:12.5px}
+  .kv .input:first-child{flex:0 0 180px}
+  .kv .del{color:var(--ink-3);cursor:pointer;padding:0 4px}
+  .kv .del:hover{color:var(--danger)}
+  .kv-add{font-size:12.5px;color:var(--glow);cursor:pointer;display:inline-block;padding:2px 0}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 20px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--ink);font-size:13.5px;cursor:pointer;transition:all .15s}
+  .btn:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--glow);border-color:var(--glow);color:#0B0F13;font-weight:600}
+  .btn.primary:hover{background:#82C2D3}
+  .test-result{display:inline-flex;align-items:center;gap:7px;font:12px var(--mono);color:var(--ok)}
+  .secur{display:flex;align-items:center;gap:10px;margin-top:16px;padding:11px 14px;border:1px solid var(--line);border-left:2px solid var(--glow);border-radius:8px;font-size:12.5px;color:var(--ink-2)}
+  .secur svg{flex:none;color:var(--glow)}
+</style>
+</head>
+<body>
+  <aside class="spine">
+    <div class="sword">
+      <span class="pommel"></span><span class="grip"></span><span class="guard"></span><span class="blade"></span><span class="point"></span>
+    </div>
+    <nav>
+      <a title="首页"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9.5 10 3l7 6.5V17h-4.5v-4h-5v4H3z"/></svg></a>
+      <a title="转换"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h11m0 0-3-3m3 3-3 3M16 13H5m0 0 3-3m-3 3 3 3"/></svg></a>
+      <a title="页面"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="9" height="13" rx="1"/><path d="M8 3v13M8 6h3M8 9h3"/></svg></a>
+      <a title="提取"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="4.5" width="13" height="11" rx="1"/><path d="M3.5 8.5h13M8 8.5v7"/></svg></a>
+      <a title="OCR"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6V4h2M14 4h2v2M16 14v2h-2M6 16H4v-2"/><path d="M6.5 8h7M6.5 11h4.5"/></svg></a>
+      <a title="AI"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3v3M10 14v3M3 10h3M14 10h3M5.2 5.2l2 2M12.8 12.8l2 2M14.8 5.2l-2 2M7.2 12.8l-2 2"/></svg></a>
+      <a class="on" title="设置"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="2.6"/><path d="M10 3.2v2M10 14.8v2M3.2 10h2M14.8 10h2M5.4 5.4l1.4 1.4M13.2 13.2l1.4 1.4M14.6 5.4l-1.4 1.4M6.8 13.2l-1.4 1.4"/></svg></a>
+    </nav>
+    <div class="spine-foot">v0.1</div>
+  </aside>
+
+  <main>
+    <aside class="snav">
+      <div class="cap">SETTINGS</div>
+      <a>常规</a>
+      <a>外观</a>
+      <a class="on">AI 模型</a>
+      <a>OCR 引擎</a>
+      <a>引擎与插件</a>
+      <a>关于</a>
+    </aside>
+
+    <div class="content">
+      <h1>AI 模型</h1>
+      <div class="sub">配置你自己的大模型 · 仅保存在本机 · 多套配置可随时切换</div>
+
+      <div class="cfgs">
+        <div class="cfg on">
+          <span class="dot"></span>
+          <div><b>DeepSeek 视觉</b><div class="meta">openai 兼容 · api.deepseek.com · deepseek-vl2</div></div>
+          <span class="badge">已连通 · 默认</span>
+          <div class="ops"><span>编辑</span><span>删除</span></div>
+        </div>
+        <div class="cfg-add">＋ 添加配置（可保存多套：工作 / 个人 / 本地 Ollama）</div>
+      </div>
+
+      <div class="form">
+        <h2>编辑配置 · DeepSeek 视觉</h2>
+        <div class="frow">
+          <div class="field"><label>协议 <span class="req">*</span></label><div class="input">OpenAI 兼容<span class="suffix">▾</span></div></div>
+          <div class="field"><label>模型名 <span class="req">*</span></label><div class="input mono">deepseek-vl2</div></div>
+        </div>
+        <div class="field"><label>BaseURL <span class="req">*</span></label><div class="input mono">https://api.deepseek.com/v1</div></div>
+        <div class="field"><label>API Key <span class="req">*</span></label><div class="input mono">sk-••••••••••••••••••••••••8f2d<span class="eye">显示</span></div></div>
+        <div class="frow">
+          <div class="field"><label>温度</label>
+            <div class="slider-row"><div class="slider"><i></div><span class="knob"></span></div><span class="slider-val">0.7</span></div>
+          </div>
+          <div class="field"><label>请求超时</label><div class="input mono">60 s</div></div>
+        </div>
+        <div class="field"><label>自定义请求头（可选）</label>
+          <div class="kv"><div class="input mono">X-App-Name</div><div class="input mono">zhanlu</div><span class="del">✕</span></div>
+          <span class="kv-add">＋ 添加请求头</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+          <button class="btn">测试连接</button>
+          <span class="test-result">✓ 连通 · 412 ms · 模型可用</span>
+          <span style="flex:1"></span>
+          <button class="btn primary">保存配置</button>
+        </div>
+        <div class="secur">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="6.5" width="9" height="6" rx="1"/><path d="M5 6.5V5a2.5 2.5 0 0 1 5 0v1.5"/></svg>
+          API Key 经系统证书加密后存储于本机配置目录，不随文档导出，不用于任何遥测。
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

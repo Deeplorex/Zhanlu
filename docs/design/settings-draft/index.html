@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>湛卢 · 能力与隐私</title>
+<style>
+  :root {
+    --ink: #2b2622;
+    --text: #242321;
+    --muted: #746f69;
+    --line: #ded9d1;
+    --canvas: #f4f1eb;
+    --warm: #ece6dc;
+    --surface: #fff;
+    --accent: #9a6549;
+    --accent-soft: #f3e9e1;
+    --ok: #437966;
+    --warn: #ad7130;
+    --sans: "Noto Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--canvas); color: var(--text); font: 14px/1.6 var(--sans); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .top {
+    height: 62px; display: flex; align-items: center; gap: 28px;
+    padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; border: 0; background: none; font-weight: 700; font-size: 17px; color: var(--ink); }
+  .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 13px; }
+  .nav { display: flex; height: 100%; align-items: stretch; }
+  .nav button { border: 0; background: none; padding: 0 16px; color: var(--text); }
+  .nav button.on { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+  .top-side { margin-left: auto; display: flex; gap: 18px; color: var(--muted); font-size: 12px; }
+  .top-side button { border: 0; background: none; color: inherit; }
+  .top-side button.on { color: var(--ink); }
+  main { max-width: 1240px; padding: 28px 40px 48px; }
+  .kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 500; }
+  h1 { margin: 4px 0 0; font-size: 30px; line-height: 1.25; font-weight: 700; color: var(--ink); }
+  .lead { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; margin-top: 22px; align-items: stretch; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 16px; display: flex; flex-direction: column; min-height: 520px; }
+  .card h2 { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
+  .card .sub { margin: 4px 0 16px; color: var(--muted); font-size: 12px; }
+  .caps { display: flex; flex-direction: column; gap: 2px; }
+  .cap {
+    display: flex; gap: 10px; align-items: flex-start; width: 100%;
+    padding: 10px 10px; border: 0; border-radius: 6px; background: none; text-align: left;
+  }
+  .cap:hover { background: var(--canvas); }
+  .cap.on { background: var(--canvas); }
+  .cap b { display: block; font-weight: 500; font-size: 14px; color: var(--text); }
+  .tick { width: 16px; flex: none; line-height: 1.5; background: none; color: inherit; font-size: 14px; }
+  .tick.ok::before { content: "✓"; font-family: "Segoe UI Symbol", "Segoe UI", sans-serif; color: var(--ok); font-weight: 700; }
+  .tick.warn::before { content: "!"; color: var(--warn); font-weight: 700; }
+  .foot { margin-top: auto; padding-top: 18px; color: var(--muted); font-size: 12px; }
+  .seg { display: flex; gap: 8px; margin-bottom: 18px; }
+  .seg button {
+    height: 36px; padding: 0 16px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface);
+  }
+  .seg button.on { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  label.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; color: var(--muted); font-size: 13px; }
+  .field input, .field select {
+    height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; background: var(--surface); color: var(--ink);
+  }
+  .hint { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+  .actions { margin-top: auto; display: flex; justify-content: space-between; gap: 12px; padding-top: 12px; }
+  .btn { height: 38px; padding: 0 16px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .quiet { margin-top: 18px; color: var(--muted); font-size: 12px; }
+  .rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .row {
+    display: flex; align-items: center; gap: 12px; min-height: 56px;
+    padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+  }
+  .row.on { border-color: var(--accent); background: var(--accent-soft); }
+  .row strong { display: block; font-weight: 500; }
+  .row small { color: var(--muted); }
+  .row .grow { flex: 1; min-width: 0; }
+  .row button { border: 0; background: none; color: var(--accent); padding: 0 4px; }
+  .tiers { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .tier {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); text-align: left;
+  }
+  .tier.on { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .tier.on small { color: var(--accent); }
+  .tier small { color: var(--muted); }
+  .toast {
+    position: fixed; right: 24px; bottom: 24px; background: var(--ink); color: #fff;
+    border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="brand" type="button"><span class="mark">湛</span>湛卢</button>
+  <nav class="nav" aria-label="主导航">
+    <button type="button">阅读</button>
+    <button type="button">页面</button>
+    <button type="button">转换</button>
+    <button type="button">✦ AI</button>
+  </nav>
+  <div class="top-side">
+    <button type="button">⌕ 查找功能</button>
+    <button type="button">任务</button>
+    <button type="button" class="on">设置</button>
+  </div>
+</header>
+<main>
+  <p class="kicker">设置 / AI 与 OCR</p>
+  <h1>能力与隐私</h1>
+  <p class="lead">首版只展示已支持的能力，缺少模型时提供安装与连接指引。</p>
+  <div class="grid">
+    <section class="card" aria-label="本机能力">
+      <h2>本机能力</h2>
+      <p class="sub">不把可选能力伪装成已启用。</p>
+      <div class="caps" id="caps"></div>
+      <p class="foot">无模型时，阅读与文件处理仍可继续。</p>
+    </section>
+    <section class="card" id="detail" aria-live="polite"></section>
+  </div>
+  <p class="quiet">文件留在本机。远程模型仅在保存之后、并且每份文档首次发送前确认。湛卢 0.1.0</p>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script>
+const start = new URLSearchParams(location.search).get("state") || "local";
+const state = {
+  view: start === "remote" || start === "ocr" || start === "builtin" ? start : "local",
+  channel: start === "remote" ? "remote" : "local",
+  tier: "standard",
+  saved: false,
+};
+
+const caps = [
+  { id: "builtin", ok: true, label: "PDF 阅读与页面处理" },
+  { id: "builtin", ok: true, label: "PDF / 图片基础转换" },
+  { id: "local", ok: false, label: "本地 AI 模型尚未连接" },
+  { id: "ocr", ok: false, label: "OCR 语言包尚未安装" },
+];
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.hidden = false;
+  el.textContent = msg;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.hidden = true; }, 1600);
+}
+
+function renderCaps() {
+  document.getElementById("caps").innerHTML = caps.map((item, i) => {
+    const on = item.id === "builtin"
+      ? state.view === "builtin"
+      : state.view === item.id || (item.id === "local" && state.view === "remote");
+    return `<button type="button" class="cap${on ? " on" : ""}" data-view="${item.id}" data-i="${i}">
+      <span class="tick ${item.ok ? "ok" : "warn"}"></span>
+      <b>${item.label}</b>
+    </button>`;
+  }).join("");
+}
+
+function modelPanel() {
+  const local = state.channel === "local";
+  return `
+    <h2>模型连接</h2>
+    <p class="sub">本地 Ollama 或主动配置的远程服务</p>
+    <div class="seg" role="tablist">
+      <button type="button" class="${local ? "on" : ""}" data-channel="local">本地模型</button>
+      <button type="button" class="${local ? "" : "on"}" data-channel="remote">远程模型</button>
+    </div>
+    ${local ? `
+      <label class="field">服务地址<input id="addr" value="http://127.0.0.1:11434" /></label>
+      <label class="field">模型<input id="model" value="qwen2.5:7b" /></label>
+      <p class="hint">本地地址会在此明确标示；远程通道发送前逐次确认。</p>
+    ` : `
+      <div class="rows">
+        <div class="row on"><div class="grow"><strong>DeepSeek</strong><small>deepseek-chat · 生效中</small></div><button type="button" data-act="test">测试</button></div>
+      </div>
+      <label class="field">名称<input placeholder="工作用" /></label>
+      <label class="field">服务地址<input placeholder="https://api.deepseek.com/v1" /></label>
+      <label class="field">模型<input placeholder="deepseek-chat" /></label>
+      <label class="field">密钥<input type="password" placeholder="只保存在本机" /></label>
+    `}
+    <div class="actions">
+      <button type="button" class="btn" data-act="test">测试连接</button>
+      <button type="button" class="btn primary" data-act="save">${state.saved ? "已保存" : "保存设置"}</button>
+    </div>`;
+}
+
+function ocrPanel() {
+  const std = state.tier === "standard";
+  return `
+    <h2>文字识别</h2>
+    <p class="sub">扫描件要有语言包，才能搜索和提问。</p>
+    <div class="tiers">
+      <button type="button" class="tier${std ? " on" : ""}" data-tier="standard"><strong>标准 · 约 30 MB</strong><small>常规印刷文档，速度更快</small></button>
+      <button type="button" class="tier${std ? "" : " on"}" data-tier="advanced"><strong>高级 · 约 165 MB</strong><small>模糊扫描件更准，也更慢</small></button>
+    </div>
+    <p class="hint">下载到湛卢数据目录，删除即卸载。阅读和其他文件处理不受影响。</p>
+    <div class="actions">
+      <span></span>
+      <button type="button" class="btn primary" data-act="ocr">下载${std ? "标准档" : "高级档"}</button>
+    </div>`;
+}
+
+function builtinPanel() {
+  return `
+    <h2>阅读与转换</h2>
+    <p class="sub">这两项随湛卢安装，不需要模型。</p>
+    <div class="rows">
+      <div class="row"><span class="tick ok"></span><div class="grow"><strong>阅读、页面整理</strong><small>打开、搜索、拆分、合并</small></div></div>
+      <div class="row"><span class="tick ok"></span><div class="grow"><strong>PDF 与图片互转</strong><small>不经过网络</small></div></div>
+    </div>
+    <p class="hint">可选能力留在左侧，未安装时不会出现在工具栏里。</p>`;
+}
+
+function render() {
+  const root = document.getElementById("detail");
+  root.innerHTML = state.view === "ocr" ? ocrPanel() : state.view === "builtin" ? builtinPanel() : modelPanel();
+  renderCaps();
+}
+
+document.body.addEventListener("click", (e) => {
+  const cap = e.target.closest("[data-view]");
+  if (cap) {
+    state.view = cap.dataset.view === "local" ? state.channel : cap.dataset.view;
+    state.saved = false;
+    render();
+    return;
+  }
+  const channel = e.target.closest("[data-channel]");
+  if (channel) {
+    state.channel = channel.dataset.channel;
+    state.view = state.channel;
+    state.saved = false;
+    render();
+    return;
+  }
+  const tier = e.target.closest("[data-tier]");
+  if (tier) { state.tier = tier.dataset.tier; render(); return; }
+  const act = e.target.closest("[data-act]");
+  if (!act) return;
+  if (act.dataset.act === "save") { state.saved = true; render(); toast("设置已留在本机"); }
+  if (act.dataset.act === "test") toast(state.channel === "local" ? "尚未连接 127.0.0.1:11434" : "DeepSeek 可以连通");
+  if (act.dataset.act === "ocr") toast(state.tier === "standard" ? "将下载标准档，约 30 MB" : "将下载高级档，约 165 MB");
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 方向C 卷宗</title>
+<style>
+  :root{
+    --bg:#E7EBEF; --paper:#FCFCFA; --paper-2:#F3F5F7;
+    --ink:#2B3138; --ink-2:#5C6672; --ink-3:#8A94A0;
+    --edge:#C7CED7; --edge-deep:#B4BDC8;
+    --blue:#35597E; --blue-soft:rgba(53,89,126,.08);
+    --tab:#EFDFA8; --tab-edge:#D9C583;
+    --red:#9C4A3C; --ok:#3E7C59;
+    --sans:'Microsoft YaHei','Segoe UI',sans-serif;
+    --kai:'KaiTi','楷体','Microsoft YaHei',serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans);overflow:hidden;position:relative}
+
+  /* 左缘装订脊 */
+  .binding{position:absolute;left:0;top:0;bottom:0;width:22px;background:#46525E;z-index:2}
+  .binding i{position:absolute;left:5px;width:12px;height:12px;border-radius:50%;background:var(--bg);box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+  .binding i:nth-child(1){top:11%}.binding i:nth-child(2){top:49%}.binding i:nth-child(3){top:87%}
+
+  .app{height:100%;padding-left:22px;display:flex;flex-direction:column}
+
+  /* 顶部登记条 */
+  .band{height:62px;background:var(--paper);border-bottom:1px solid var(--edge);display:flex;align-items:center;gap:22px;padding:0 26px}
+  .brand b{font-size:20px;letter-spacing:.1em}
+  .brand span{display:block;font-size:11px;color:var(--ink-3);letter-spacing:.22em;margin-top:-2px}
+  .registry{width:400px;height:34px;border:1px solid var(--edge-deep);background:#fff;display:flex;align-items:center;padding:0 12px;color:var(--ink-3);font-size:12.5px}
+  .registry svg{margin-right:8px;flex:none}
+  .band .status{margin-left:auto;display:flex;gap:18px;font-size:12px;color:var(--ink-2);align-items:center}
+  .status .ok{color:var(--ok)}
+  .status .miss{color:var(--blue);border-bottom:1px dashed var(--blue);cursor:pointer}
+  .status .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;background:var(--ok)}
+  .status .miss .dot{background:var(--ink-3)}
+
+  main{flex:1;padding:22px 26px 12px;overflow:hidden}
+
+  .sec{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .sec b{font-size:15px;letter-spacing:.24em;font-weight:700}
+  .sec i{flex:1;border-top:1px solid var(--edge)}
+  .sec span{font-family:var(--kai);font-size:12.5px;color:var(--ink-3)}
+
+  /* 案头工具 */
+  .tools{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 12px;margin-bottom:24px}
+  .tool{position:relative;height:88px;background:var(--paper);border:1px solid var(--edge);padding:26px 16px 12px;cursor:pointer;transition:border-color .15s,background .15s}
+  .tool:hover{border-color:var(--blue);background:#fff}
+  .tool .tab{position:absolute;top:-9px;left:14px;background:var(--tab);border:1px solid var(--tab-edge);
+    font-family:var(--kai);font-size:12.5px;line-height:1;padding:4px 10px 5px;transform:rotate(-1.6deg);
+    box-shadow:1px 1px 0 rgba(43,49,56,.08);transform-origin:left bottom;transition:transform .18s}
+  .tool:hover .tab{transform:rotate(-4deg) translateY(-2px)}
+  .tool b{display:block;font-size:15px;margin-bottom:2px}
+  .tool span{font-size:11.5px;color:var(--ink-2)}
+  .tool .go{position:absolute;right:12px;bottom:10px;font-size:12px;color:var(--blue);opacity:0;transition:opacity .15s}
+  .tool:hover .go{opacity:1}
+
+  /* 卷宗卡 */
+  .dossiers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .dossier{position:relative;background:var(--paper);border:1px solid var(--edge);padding:16px 16px 12px 30px;cursor:pointer;transition:border-color .15s}
+  .dossier:hover{border-color:var(--blue)}
+  .dossier .holes{position:absolute;left:8px;top:0;bottom:0;width:12px}
+  .dossier .holes i{position:absolute;left:2px;width:8px;height:8px;border-radius:50%;background:var(--bg);border:1px solid var(--edge-deep)}
+  .dossier .holes i:nth-child(1){top:24%}.dossier .holes i:nth-child(2){top:49%}.dossier .holes i:nth-child(3){top:74%}
+  .dossier .tag{position:absolute;top:-9px;left:38px;background:var(--tab);border:1px solid var(--tab-edge);
+    font-family:var(--kai);font-size:13px;line-height:1;padding:4px 12px 5px;transform:rotate(-1.2deg);max-width:82%;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:1px 1px 0 rgba(43,49,56,.08)}
+  .dossier .sheet{margin:14px 0 10px;height:128px;background:var(--paper-2);border:1px solid var(--edge);position:relative;overflow:hidden}
+  .sheet .pg{position:absolute;left:50%;top:12px;transform:translateX(-50%);width:96px;height:116px;background:#fff;border:1px solid var(--edge);
+    box-shadow:3px 4px 10px rgba(43,49,56,.10);padding:12px 9px}
+  .sheet .pg .t{height:5px;width:62%;background:#3E4A56;margin-bottom:8px}
+  .sheet .pg .t.b{background:#5B7A9C;width:42%}
+  .sheet .pg .l{height:3px;background:#C2CAD3;margin-bottom:6px}
+  .sheet .pg .l:nth-child(4){width:84%}.sheet .pg .l:nth-child(5){width:72%}.sheet .pg .l:nth-child(6){width:88%}.sheet .pg .l:nth-child(7){width:58%}
+  .sheet .fmt{position:absolute;right:8px;top:8px;font-size:10px;color:var(--blue);border:1px solid var(--edge-deep);padding:1px 5px;background:#fff;letter-spacing:.05em}
+  .meta{border-top:1px solid var(--edge);padding-top:9px;display:grid;grid-template-columns:auto 1fr auto;gap:3px 14px;font-size:12px}
+  .meta dt{color:var(--ink-3)}
+  .meta dd{color:var(--ink)}
+  .meta .act{grid-column:3;grid-row:1/4;align-self:center;font-size:12.5px;color:var(--blue)}
+  .meta .enc{color:var(--red)}
+
+  footer{display:flex;justify-content:space-between;align-items:center;height:40px;border-top:1px solid var(--edge);
+    margin:0 26px;font-size:11.5px;color:var(--ink-3)}
+</style>
+</head>
+<body>
+<div class="binding"><i></i><i></i><i></i></div>
+<div class="app">
+
+  <header class="band">
+    <div class="brand"><b>湛卢</b><span>ZHANLU ARCHIVE</span></div>
+    <div class="registry">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6" cy="6" r="4.4"/><path d="m9.2 9.2 2.8 2.8"/></svg>
+      登记检索：输入文件名或工具名……
+    </div>
+    <div class="status">
+      <span class="ok"><span class="dot"></span>Office 已连接</span>
+      <span class="miss"><span class="dot"></span>LibreOffice 未安装 · 引导安装</span>
+      <span><span class="dot" style="background:var(--ink-3)"></span>AI 未配置</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="sec"><b>案头工具</b><i></i><span>贴签即用</span></div>
+    <div class="tools">
+      <div class="tool"><span class="tab">转换</span><b>转换中心</b><span>Office · 图片 · Markdown ⇄ PDF</span><span class="go">进入 ▸</span></div>
+      <div class="tool"><span class="tab">整理</span><b>合并 · 拆分</b><span>多文件合卷 · 按页码拆卷</span><span class="go">进入 ▸</span></div>
+      <div class="tool"><span class="tab">识文</span><b>OCR 识别</b><span>生成可搜索 PDF</span><span class="go">进入 ▸</span></div>
+      <div class="tool"><span class="tab">取数</span><b>提取表格</b><span>存为 Excel / CSV</span><span class="go">进入 ▸</span></div>
+      <div class="tool"><span class="tab">纲目</span><b>提取目录</b><span>含页码大纲 · 可写回</span><span class="go">进入 ▸</span></div>
+      <div class="tool"><span class="tab">国标</span><b>OFD ⇄ PDF</b><span>GB/T 33190 直读互转</span><span class="go">进入 ▸</span></div>
+      <div class="tool"><span class="tab">智能</span><b>AI 助手</b><span>自配大模型 · 文档问答</span><span class="go">配置 ▸</span></div>
+      <div class="tool"><span class="tab">护卷</span><b>加密 · 压缩</b><span>权限密码 · 瘦身三档</span><span class="go">进入 ▸</span></div>
+    </div>
+
+    <div class="sec" style="margin-top:4px"><b>最近卷宗</b><i></i><span>按归档时间</span></div>
+    <div class="dossiers">
+      <article class="dossier">
+        <div class="holes"><i></i><i></i><i></i></div>
+        <span class="tag">2026年度审计报告.pdf</span>
+        <div class="sheet"><span class="fmt">PDF</span>
+          <div class="pg"><div class="t b"></div><div class="t"></div><div class="l"></div><div class="l"></div><div class="l"></div><div class="l"></div></div>
+        </div>
+        <dl class="meta">
+          <dt>页数</dt><dd>86 页</dd><dd class="act">打开 ▸</dd>
+          <dt>归时</dt><dd>昨日 16:42</dd>
+          <dt>备注</dt><dd>常用</dd>
+        </dl>
+      </article>
+      <article class="dossier">
+        <div class="holes"><i></i><i></i><i></i></div>
+        <span class="tag">购房合同（扫描件）.pdf</span>
+        <div class="sheet"><span class="fmt">PDF</span>
+          <div class="pg"><div class="t"></div><div class="l"></div><div class="l"></div><div class="l"></div></div>
+        </div>
+        <dl class="meta">
+          <dt>页数</dt><dd>12 页</dd><dd class="act">打开 ▸</dd>
+          <dt>归时</dt><dd>三日前</dd>
+          <dt>备注</dt><dd class="enc">已加密 · 待 OCR</dd>
+        </dl>
+      </article>
+      <article class="dossier">
+        <div class="holes"><i></i><i></i><i></i></div>
+        <span class="tag">员工手册.ofd</span>
+        <div class="sheet"><span class="fmt">OFD</span>
+          <div class="pg"><div class="t b"></div><div class="l"></div><div class="l"></div><div class="l"></div><div class="l"></div><div class="l"></div></div>
+        </div>
+        <dl class="meta">
+          <dt>页数</dt><dd>45 页</dd><dd class="act">打开 ▸</dd>
+          <dt>归时</dt><dd>10-12</dd>
+          <dt>备注</dt><dd>国标格式</dd>
+        </dl>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <span>湛卢 0.1.0 · 案卷不出本机</span>
+    <span>纯本地 · 无遥测</span>
+  </footer>
+</div>
+</body>
+</html>

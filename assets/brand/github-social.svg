@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="湛卢 PDF GitHub Social 预览图">
+  <rect width="1280" height="640" fill="#F4F1EB"/>
+  <rect x="884" width="396" height="640" fill="#2B2622"/>
+  <path d="M80 82h624" stroke="#DED9D1" stroke-width="2"/>
+  <text x="80" y="133" fill="#9A6549" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="700" letter-spacing="4">ZHANLU  /  LOCAL PDF WORKSPACE</text>
+  <text x="73" y="286" fill="#2B2622" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="104" font-weight="700">湛卢 PDF</text>
+  <text x="80" y="356" fill="#514A43" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="31" font-weight="500">轻量、清晰、本地优先的 PDF 工作台</text>
+  <path d="M80 418h682" stroke="#CFC7BC" stroke-width="2"/>
+  <g fill="#FFFFFF" stroke="#DED9D1" stroke-width="1">
+    <rect x="80" y="456" width="117" height="46" rx="9"/><rect x="211" y="456" width="117" height="46" rx="9"/>
+    <rect x="342" y="456" width="117" height="46" rx="9"/><rect x="473" y="456" width="117" height="46" rx="9"/>
+  </g>
+  <g fill="#2B2622" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="600" text-anchor="middle">
+    <text x="138" y="486">阅读</text><text x="269" y="486">页面</text><text x="400" y="486">转换</text><text x="531" y="486">AI</text>
+  </g>
+  <text x="80" y="579" fill="#746F69" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="18">清晰地读，安心地做。</text>
+  <circle cx="1082" cy="304" r="170" fill="none" stroke="#564B42" stroke-width="2"/>
+  <circle cx="1082" cy="304" r="132" fill="none" stroke="#423A34" stroke-width="2"/>
+  <g transform="translate(874 88) scale(3.25)">
+    <path d="M64 16 54 39l5 31 5 5 5-5 5-31-10-23Z" fill="#F4F1EB"/>
+    <path d="M64 26v45" stroke="#C7AD97" stroke-width="2" stroke-linecap="round"/>
+    <path d="M36 73h56l-8 9H44l-8-9Z" fill="#F4F1EB"/>
+    <path d="M60 82h8v18h-8z" fill="#F4F1EB"/>
+    <path d="m64 101 9 9-9 9-9-9 9-9Z" fill="#9A6549"/>
+  </g>
+  <text x="1082" y="572" fill="#C7BEB3" font-family="Noto Sans SC, Microsoft YaHei, sans-serif" font-size="17" letter-spacing="7" text-anchor="middle">澄明 · 深湛</text>
+</svg>

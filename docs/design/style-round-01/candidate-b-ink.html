@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 方向B 墨书</title>
+<style>
+  :root{
+    --paper:#F6F1E5; --paper-deep:#EFE7D4;
+    --ink:#211D18; --ink-2:#5F584C; --ink-3:#8B8272;
+    --line:#D9CFB8; --leader:#B9AC8D;
+    --seal:#A63B2A; --seal-soft:rgba(166,59,42,.14);
+    --serif:'Source Han Serif SC','Noto Serif SC','SimSun',serif;
+    --kai:'KaiTi','楷体','Source Han Serif SC',serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--paper);color:var(--ink);font:14px/1.75 var(--serif);overflow:hidden;position:relative}
+  /* 宣纸帘纹 */
+  body::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(88,72,40,.018) 0 1px,transparent 1px 5px);}
+  .page{position:relative;height:100%;padding:52px 72px 40px;display:flex;flex-direction:column}
+
+  /* ── 卷首 ─────────────────────── */
+  .head{display:flex;align-items:flex-end;justify-content:space-between}
+  .title{display:flex;align-items:flex-start;gap:18px}
+  .title h1{font-size:58px;font-weight:700;letter-spacing:.1em;line-height:1.1}
+  .seal{width:46px;height:46px;background:var(--seal);color:#F8F2E6;display:grid;grid-template-columns:1fr 1fr;
+    font-family:var(--kai);font-size:15px;line-height:1;place-items:center;transform:rotate(2.5deg);
+    border-radius:3px;box-shadow:inset 0 0 0 2px rgba(248,242,230,.35);margin-top:8px}
+  .title .sub{font-size:12.5px;color:var(--ink-2);letter-spacing:.34em;margin-top:10px}
+  .head .colophon{text-align:right;font-family:var(--kai);color:var(--ink-2);font-size:13.5px;line-height:2}
+  .rule{margin-top:18px;border-top:3px solid var(--ink);border-bottom:1px solid var(--ink);height:7px}
+
+  /* ── 目录 ─────────────────────── */
+  .sec-label{display:flex;align-items:center;gap:14px;margin:30px 0 18px}
+  .sec-label b{font-size:21px;font-weight:700;letter-spacing:.9em}
+  .sec-label i{flex:1;border-top:1px solid var(--line)}
+  .sec-label span{font-family:var(--kai);font-size:12.5px;color:var(--ink-3);letter-spacing:.2em}
+
+  .toc{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 56px}
+  .cat{margin-bottom:10px}
+  .cat-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .cat-head .num{font-family:var(--kai);font-size:19px;color:var(--ink)}
+  .cat-head .name{font-size:16.5px;font-weight:700;letter-spacing:.12em}
+  .entry{display:flex;align-items:baseline;padding:3px 2px;cursor:pointer}
+  .e-name{font-size:15px;white-space:nowrap}
+  .entry:hover .e-name{background:linear-gradient(transparent 68%,var(--seal-soft) 0)}
+  .leader{flex:1;border-bottom:1.5px dotted var(--leader);margin:0 9px;transform:translateY(-5px);min-width:24px}
+  .e-note{font-size:12.5px;color:var(--ink-3);white-space:nowrap;font-family:var(--kai)}
+  .e-note.warn{color:var(--seal)}
+
+  /* ── 案头存目 ─────────────────── */
+  .files{flex:1;margin-top:6px}
+  .frow{display:flex;align-items:baseline;gap:16px;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .frow:hover{background:var(--paper-deep)}
+  .f-dot{width:7px;height:7px;border-radius:50%;background:var(--seal);align-self:center;flex:none;opacity:.85}
+  .f-dot.empty{background:none;border:1.5px solid var(--leader)}
+  .f-name{font-size:16.5px;letter-spacing:.02em;white-space:nowrap}
+  .f-sub{margin-left:auto;font-family:var(--kai);font-size:13px;color:var(--ink-2);white-space:nowrap}
+  .f-sub .enc{color:var(--seal)}
+  .f-act{font-family:var(--kai);font-size:13.5px;color:var(--ink-3);white-space:nowrap;opacity:0;transition:opacity .15s}
+  .frow:hover .f-act{opacity:1;color:var(--seal)}
+
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:22px;border-top:1px solid var(--line);padding-top:14px;
+    font-family:var(--kai);font-size:12.5px;color:var(--ink-3);letter-spacing:.12em}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="head">
+    <div class="title">
+      <h1>湛卢</h1>
+      <div class="seal"><span>湛</span><span>盧</span><span>之</span><span>印</span></div>
+    </div>
+    <div class="colophon">
+      <div class="title-sub" style="font-size:12.5px;letter-spacing:.34em;margin-top:10px;color:var(--ink-2)">ZHANLU · 纯本地文档工具</div>
+      <div>十月廿三 · 文档不出本机</div>
+    </div>
+  </header>
+  <div class="rule"></div>
+
+  <div class="sec-label"><b>目录</b><i></i><span>开卷即用，皆是本机功夫</span></div>
+  <div class="toc">
+    <div>
+      <div class="cat">
+        <div class="cat-head"><span class="num">壹</span><span class="name">浏览与整理</span></div>
+        <div class="entry"><span class="e-name">打开文档</span><span class="leader"></span><span class="e-note">PDF · OFD · 加密</span></div>
+        <div class="entry"><span class="e-name">页面管理</span><span class="leader"></span><span class="e-note">增删 · 移转</span></div>
+        <div class="entry"><span class="e-name">合并卷宗</span><span class="leader"></span><span class="e-note">多文件排序</span></div>
+        <div class="entry"><span class="e-name">拆分卷宗</span><span class="leader"></span><span class="e-note">任意页码</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-head"><span class="num">叁</span><span class="name">提取</span></div>
+        <div class="entry"><span class="e-name">取文本</span><span class="leader"></span><span class="e-note">整篇或框选</span></div>
+        <div class="entry"><span class="e-name">取表格</span><span class="leader"></span><span class="e-note">存为 Excel</span></div>
+        <div class="entry"><span class="e-name">取目录</span><span class="leader"></span><span class="e-note">含页码大纲</span></div>
+        <div class="entry"><span class="e-name">取图片</span><span class="leader"></span><span class="e-note">导出原件</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="cat">
+        <div class="cat-head"><span class="num">贰</span><span class="name">转换</span></div>
+        <div class="entry"><span class="e-name">OFD 与 PDF 互转</span><span class="leader"></span><span class="e-note">国标直读</span></div>
+        <div class="entry"><span class="e-name">Office 转 PDF</span><span class="leader"></span><span class="e-note">本机引擎</span></div>
+        <div class="entry"><span class="e-name">PDF 转 Word</span><span class="leader"></span><span class="e-note">基础还原</span></div>
+        <div class="entry"><span class="e-name">图片合成 PDF</span><span class="leader"></span><span class="e-note">多张排序</span></div>
+        <div class="entry"><span class="e-name">Markdown 转 PDF</span><span class="leader"></span><span class="e-note">多主题</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="cat">
+        <div class="cat-head"><span class="num">肆</span><span class="name">智能</span></div>
+        <div class="entry"><span class="e-name">OCR 识别</span><span class="leader"></span><span class="e-note">可搜索 PDF</span></div>
+        <div class="entry"><span class="e-name">AI 助手</span><span class="leader"></span><span class="e-note warn">需先配置</span></div>
+        <div class="entry"><span class="e-name">AI 生成目录</span><span class="leader"></span><span class="e-note">无书签可用</span></div>
+        <div class="entry"><span class="e-name">AI 修版</span><span class="leader"></span><span class="e-note">复杂版式</span></div>
+      </div>
+      <div class="cat">
+        <div class="cat-head"><span class="num">附</span><span class="name">器物</span></div>
+        <div class="entry"><span class="e-name">水印 · 页眉页脚</span><span class="leader"></span><span class="e-note">二期</span></div>
+        <div class="entry"><span class="e-name">压缩 · 加密</span><span class="leader"></span><span class="e-note">二期</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-label"><b>案头</b><i></i><span>存目六种，随取随用</span></div>
+  <div class="files">
+    <div class="frow"><span class="f-dot"></span><span class="f-name">2026年度审计报告.pdf</span><span class="f-act">开卷 · 取目录</span><span class="f-sub">八十六页 · 昨日申时</span></div>
+    <div class="frow"><span class="f-dot"></span><span class="f-name">湛卢-功能清单.pdf</span><span class="f-act">开卷</span><span class="f-sub">六页 · 今日辰时</span></div>
+    <div class="frow"><span class="f-dot empty"></span><span class="f-name">购房合同（扫描件）.pdf</span><span class="f-act">开卷 · OCR</span><span class="f-sub">十二页 · 三日前 · <span class="enc">已加密</span></span></div>
+    <div class="frow"><span class="f-dot empty"></span><span class="f-name">员工手册.ofd</span><span class="f-act">开卷</span><span class="f-sub">四十五页 · 十月十二</span></div>
+    <div class="frow"><span class="f-dot empty"></span><span class="f-name">产品需求文档 v3.2.docx</span><span class="f-act">转为 PDF</span><span class="f-sub">二十四页 · 周二</span></div>
+    <div class="frow"><span class="f-dot empty"></span><span class="f-name">发票汇总 2026Q3.xlsx</span><span class="f-act">取表格 · 转 PDF</span><span class="f-sub">八页 · 十月十八</span></div>
+  </div>
+
+  <footer class="foot">
+    <span>湛卢 Zhanlu · 第一版</span>
+    <span>纯本地运行 · 无遥测 · 不联云端</span>
+  </footer>
+</div>
+</body>
+</html>

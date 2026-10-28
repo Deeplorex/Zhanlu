@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 玄铁 UI · 总览</title>
+<style>
+  :root{
+    --bg:#0B0F13;--panel:#12181F;--panel-2:#161E26;--line:#232D37;--line-hi:#33434F;
+    --ink:#C9D5DF;--ink-hi:#E4EDF3;--ink-2:#84929F;--ink-3:#586673;
+    --glow:#6FB6C8;--glow-soft:rgba(111,182,200,.12);--glow-line:rgba(111,182,200,.45);
+    --ok:#6FA98C;--warn:#C2A15C;--danger:#C47A6E;
+    --mono:'Consolas','Courier New',monospace;--sans:'Segoe UI','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.65 var(--sans);overflow:hidden;padding:38px 52px}
+  h1{font-size:24px;font-weight:600;letter-spacing:.12em;color:var(--ink-hi)}
+  .sub{font:11px var(--mono);color:var(--ink-3);letter-spacing:.24em;margin:6px 0 26px}
+  .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:34px}
+
+  h2{font-size:13px;color:var(--ink-2);letter-spacing:.28em;font-weight:600;border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:13px}
+  .links{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  a.card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px 14px;text-decoration:none;transition:border-color .15s,background .15s}
+  a.card:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  a.card b{display:block;color:var(--ink-hi);font-size:14px;font-weight:600}
+  a.card span{font-size:11.5px;color:var(--ink-3)}
+  a.card .no{font:10.5px var(--mono);color:var(--glow);margin-right:7px}
+
+  .recap{font-size:13px;color:var(--ink-2);line-height:1.8}
+  .recap b{color:var(--ink);font-weight:500}
+  .recap .star{color:var(--glow)}
+
+  table.score{width:100%;border-collapse:collapse;font-size:12.5px}
+  .score td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink-2)}
+  .score td:first-child{color:var(--ink);white-space:nowrap}
+  .score td.s{font-family:var(--mono);color:var(--glow);text-align:right;white-space:nowrap}
+  .score .avg td{border-bottom:0;color:var(--ink-hi);font-weight:600}
+  .score .avg td.s{color:var(--glow)}
+
+  .motion li{margin:0 0 9px 0;font-size:13px;color:var(--ink-2);list-style:none;padding-left:16px;position:relative}
+  .motion li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:2px;background:var(--glow)}
+  .motion b{color:var(--ink);font-weight:500}
+  .motion code{font:11px var(--mono);color:var(--glow)}
+  .foot{margin-top:22px;font:11px var(--mono);color:var(--ink-3);letter-spacing:.05em;line-height:1.8}
+</style>
+</head>
+<body>
+  <h1>湛卢 Zhanlu · 玄铁 UI 规格</h1>
+  <div class="sub">IRON DESIGN SYSTEM · ROUND 01 SELECTED · 2026-10-23 · 1280×900 DESKTOP</div>
+
+  <div class="cols">
+    <div>
+      <h2>屏幕 SCREENS</h2>
+      <div class="links">
+        <a class="card" href="tokens.html"><b><span class="no">S0</span>设计变量</b><span>色板 · 字阶 · 控件语法 · 动效规格</span></a>
+        <a class="card" href="s1-home.html"><b><span class="no">S1</span>首页 · 工具箱</b><span>最近文档 · 常用动作 · 引擎状态灯</span></a>
+        <a class="card" href="s2-reader.html"><b><span class="no">S2</span>阅读器</b><span>多标签 · 缩略图/书签/搜索 · 暗画布</span></a>
+        <a class="card" href="s3-convert.html"><b><span class="no">S3</span>转换中心</b><span>拖放 · 格式矩阵 · 引擎选择 · 三态</span></a>
+        <a class="card" href="s4-pages.html"><b><span class="no">S4</span>页面整理</b><span>增删移转 · 拆分/合并配置面板</span></a>
+        <a class="card" href="s5-extract.html"><b><span class="no">S5</span>提取中心</b><span>表格（区域标注）/ 目录 · AI 兜底</span></a>
+        <a class="card" href="s6-settings-ai.html"><b><span class="no">S6</span>设置 · AI 模型</b><span>多配置 · 协议/Key/参数 · 连通测试</span></a>
+        <a class="card" href="s7-engines.html"><b><span class="no">S7</span>引擎与插件</b><span>Office/LibreOffice · OCR 引擎 · 能力总览</span></a>
+      </div>
+
+      <h2 style="margin-top:24px">方向 RECAP</h2>
+      <div class="recap">
+        <b>北极星</b>：深夜书房里一柄玄铁剑横在工作台上——<span class="star">安静、锋利、可靠</span>；湛卢是握在手里的利器。<br>
+        <b>结构语法</b>：76px 剑脊竖导航 + 面板分区；标题用字距与明度分层，不靠色相。<br>
+        <b>色彩纪律</b>：墨黑金属底 + 寒银四级文字，唯一强调色「剑光青 #6FB6C8」每屏 ≤10% 面积；状态色三枚（青绿/暗金/赭红）只做语义。<br>
+        <b>品牌时刻</b>：文档卡悬停时一道斜向剑光扫过封面——材质即识别。
+      </div>
+
+      <h2 style="margin-top:24px">动效 MOTION · 金属咔嗒</h2>
+      <ul class="motion">
+        <li><b>按下咔嗒</b>　<code>scale .97 · 150ms · bezier(.2,.7,.3,1)</code>　按钮/卡片按下立即生效</li>
+        <li><b>剑光扫过</b>　<code>gradient position · 550ms ease</code>　文档卡悬停 · 品牌时刻</li>
+        <li><b>首次出场</b>　<code>rise 6px · 每项 +50ms · 总长 ≤600ms</code>　工作区先到，侧栏随后，仅首次</li>
+        <li><b>面板滑入</b>　<code>translateX · 250–350ms</code>　从所在一侧滑入，关闭走 60% 时长</li>
+        <li><b>选中滑块</b>　<code>180ms</code>　标签页共用一块移动底板，禁止旧灭新亮</li>
+      </ul>
+    </div>
+
+    <div>
+      <h2>独立评审 · 10 分制</h2>
+      <table class="score">
+        <tr><td>S0 设计变量</td><td class="s">7.5</td></tr>
+        <tr><td>S1 首页</td><td class="s">8</td></tr>
+        <tr><td>S2 阅读器</td><td class="s">8</td></tr>
+        <tr><td>S3 转换中心</td><td class="s">7.5</td></tr>
+        <tr><td>S4 页面整理</td><td class="s">7.5</td></tr>
+        <tr><td>S5 提取中心</td><td class="s">7.5</td></tr>
+        <tr><td>S6 设置·AI</td><td class="s">7.5</td></tr>
+        <tr><td>S7 引擎插件</td><td class="s">7</td></tr>
+        <tr class="avg"><td>平均（修正误报后）</td><td class="s">7.7</td></tr>
+      </table>
+      <p style="font-size:12px;color:var(--ink-3);margin-top:10px;line-height:1.7">
+        评审由无上下文的独立评审者完成（截图→视觉模型链路）。部分发现经与源稿核对为误报（如"缺页码范围输入""Key 未脱敏"），已在 spec.md 逐条甄别；确证问题（色板缺色值、S7 底部溢出）当场修复。待实现状态（失败态、暂停、空态、密码弹窗）列入 spec 状态矩阵。
+      </p>
+
+      <h2 style="margin-top:22px">交付物 FILES</h2>
+      <div class="foot">
+        docs/design/zhanlu-ui/<br>
+        ├─ tokens.html + s1…s7.html　（本目录，可直接打开）<br>
+        ├─ spec.md　开发交接规格（状态矩阵/组件/i18n/a11y）<br>
+        ├─ shots/　全部截图证据（含交互态并排图）<br>
+        └─ vendor/alpine.min.js　小样交互引擎（正式实现换前端框架）<br><br>
+        ROUND 01 备选方向存档：docs/design/style-round-01/
+      </div>
+    </div>
+  </div>
+</body>
+</html>

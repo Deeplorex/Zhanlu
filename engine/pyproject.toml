@@ -1,0 +1,9 @@
+[project]
+name = "zhanlu"
+version = "0.1.0"
+license = { text = "Apache-2.0" }
+description = "湛卢 Zhanlu — 本地 PDF 工作台处理引擎"
+requires-python = ">=3.11"
+
+[project.scripts]
+zhanlu = "zhanlu.__main__:main"

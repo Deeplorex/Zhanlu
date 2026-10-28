@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "project": "湛卢 Zhanlu",
+  "brief": "纯本地 PDF/OFD 工具箱「湛卢」的桌面首页（工具箱首页，1280×900）。用户来这里：①快速回到最近文档；②发起高频动作（转换/合并/拆分/OCR/提取表格/提取目录/AI）；③查看外部引擎与 AI 配置状态。四个方向保持核心内容与主要动作一致，比较的是视觉方向。",
+  "round": "01",
+  "candidates": [
+    {
+      "id": "a-iron",
+      "name": "玄铁",
+      "concept": "深夜书房里一柄玄铁剑横在工作台上：安静、锋利、可靠，湛卢是握在手里的利器。",
+      "typography": "Segoe UI / 微软雅黑，标题 22px 加宽字距；数字与状态用 Consolas 等宽",
+      "palette": ["#0B0F13", "#161E26", "#C9D5DF", "#6FB6C8", "#6FA98C"],
+      "traits": ["墨黑金属面板 + 寒银文字，唯一强调色是剑光青", "左侧剑脊窄导航，CSS 画竖剑形标识", "文档卡悬停时一道斜向青光扫过封面（剑出鞘）"],
+      "kind": "html",
+      "source": "candidate-a-iron.html"
+    },
+    {
+      "id": "b-ink",
+      "name": "墨书",
+      "concept": "一册摊开的线装书目录页：工具不是彩色按钮，而是一页可检索的目录；湛卢是文房里那把裁纸名剑。",
+      "typography": "思源宋体/SimSun 衬线为主，楷体做批注与标签；标题 58px 疏排",
+      "palette": ["#F6F1E5", "#211D18", "#A63B2A", "#B9AC8D"],
+      "traits": ["纸墨双色，朱砂仅用于印章/选中/加密，饱和度预算极低", "首页即「目录页」：编号条目 + 点线引导词，全站无图标", "悬停条目出现朱笔下划线，朱点标记常用文件"],
+      "kind": "html",
+      "source": "candidate-b-ink.html"
+    },
+    {
+      "id": "c-dossier",
+      "name": "卷宗",
+      "concept": "一间整洁的档案室：每份文档是一册卷宗，工具是贴在案头的标签纸，处理文档像归档一样安心有序。",
+      "typography": "微软雅黑为主，楷体写标签纸与批注；直角卡片、细表格线元数据",
+      "palette": ["#E7EBEF", "#FCFCFA", "#35597E", "#EFDFA8", "#9C4A3C"],
+      "traits": ["左缘打孔装订脊贯穿全窗，文档卡带装订孔与斜贴黄标签", "工具卡顶部贴楷体黄纸标签，悬停标签翘角", "档案蓝做主动作，加密等警示用深红小字"],
+      "kind": "html",
+      "source": "candidate-c-dossier.html"
+    },
+    {
+      "id": "d-instrument",
+      "name": "仪器",
+      "concept": "桌上一台校准好的精密仪器：状态灯、刻度、读数一目了然，放进去文档，出来结果。",
+      "typography": "等线/Segoe UI + Consolas 等宽读数；状态词全大写等宽字母",
+      "palette": ["#F2F3F5", "#23272C", "#D95A1E", "#3E7C59"],
+      "traits": ["炭黑仪表带常驻引擎状态灯（OFFICE/LIBREOFFICE/AI/OCR）与读数区", "工具矩阵带序号与快捷键刻印，悬停出现橙色角标刻度", "任务队列用刻度格填充进度，等宽数字读页数与耗时"],
+      "kind": "html",
+      "source": "candidate-d-instrument.html"
+    }
+  ]
+}

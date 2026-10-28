@@ -1,0 +1,34 @@
+# Python
+engine/.venv/
+engine/build/
+__pycache__/
+*.pyc
+
+# Node / 前端
+apps/web/node_modules/
+apps/web/dist/
+*.tsbuildinfo
+
+# Rust / Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/node_modules/
+
+# 本机数据与产物
+docs/design/*/shots/
+/tmp/
+.tmp-tests/
+test-files/
+*.log
+.tmp-figma/
+.tmp-audit-runtime/
+engine/.tmp-test/
+
+# 本机会话与交接词（不随仓库发布）
+.handoff/
+.zcode/
+.playwright-cli/
+
+# 本机产物与抓取缓存
+/output/
+/figma-*.json
+/figma-tree-*.txt

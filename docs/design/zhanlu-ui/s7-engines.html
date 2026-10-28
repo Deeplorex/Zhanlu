@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 引擎与插件</title>
+<style>
+  :root{
+    --bg:#0B0F13;--panel:#12181F;--panel-2:#161E26;--canvas:#0E1319;
+    --line:#232D37;--line-hi:#33434F;
+    --ink:#C9D5DF;--ink-hi:#E4EDF3;--ink-2:#84929F;--ink-3:#586673;
+    --glow:#6FB6C8;--glow-soft:rgba(111,182,200,.12);--glow-line:rgba(111,182,200,.45);
+    --ok:#6FA98C;--ok-soft:rgba(111,169,140,.12);
+    --warn:#C2A15C;--warn-soft:rgba(194,161,92,.12);
+    --danger:#C47A6E;
+    --mono:'Consolas','Courier New',monospace;
+    --sans:'Segoe UI','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans);overflow:hidden;display:flex}
+  :focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .spine{width:76px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0 14px;flex:none}
+  .sword{height:88px;display:flex;flex-direction:column;align-items:center;margin-bottom:26px}
+  .sword .pommel{width:5px;height:5px;border-radius:50%;background:#9FB6C0}
+  .sword .grip{width:2px;height:10px;background:#5A6B76}
+  .sword .guard{width:22px;height:2px;background:#8FA5B0;margin:1px 0}
+  .sword .blade{width:2px;height:58px;background:linear-gradient(180deg,#D9E6EC,#7FA8B6 60%,#3E5460)}
+  .sword .point{width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:7px solid #D9E6EC}
+  .spine nav{display:flex;flex-direction:column;gap:6px;flex:1}
+  .spine nav a{width:46px;height:46px;display:flex;align-items:center;justify-content:center;color:var(--ink-3);position:relative;border-radius:9px;transition:color .18s,background .18s}
+  .spine nav a:hover{color:var(--ink);background:var(--panel-2)}
+  .spine nav a.on{color:var(--glow);background:var(--glow-soft)}
+  .spine nav a.on::before{content:'';position:absolute;left:-15px;top:12px;bottom:12px;width:2px;background:var(--glow);border-radius:2px;box-shadow:0 0 8px rgba(111,182,200,.7)}
+  .spine-foot{font:10px var(--mono);color:var(--ink-3)}
+
+  main{flex:1;display:flex;min-width:0}
+  .snav{width:216px;background:var(--panel);border-right:1px solid var(--line);padding:22px 12px;display:flex;flex-direction:column;gap:3px}
+  .snav .cap{font:10.5px var(--mono);color:var(--ink-3);letter-spacing:.22em;padding:0 12px;margin-bottom:8px}
+  .snav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--ink-2);font-size:13.5px;cursor:pointer;position:relative}
+  .snav a:hover{color:var(--ink);background:var(--panel-2)}
+  .snav a.on{color:var(--glow);background:var(--glow-soft)}
+  .snav a.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:2px;background:var(--glow);border-radius:2px}
+
+  .content{flex:1;padding:18px 30px;overflow:auto;min-width:0}
+  .content h1{font-size:18px;font-weight:600;letter-spacing:.08em;color:var(--ink-hi);animation:rise .3s cubic-bezier(.2,.7,.3,1) both}
+  .content .sub{font-size:12px;color:var(--ink-3);margin:2px 0 14px;animation:rise .3s cubic-bezier(.2,.7,.3,1) .04s both}
+  .sec{margin-bottom:14px;animation:rise .3s cubic-bezier(.2,.7,.3,1) .08s both}
+  .sec h2{font-size:13px;font-weight:600;color:var(--ink-2);letter-spacing:.2em;margin-bottom:9px}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .eng{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 16px;transition:border-color .15s}
+  .eng:hover{border-color:var(--line-hi)}
+  .eng .top{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+  .eng .dot{width:8px;height:8px;border-radius:50%;background:#3A4650;flex:none}
+  .eng.ok .dot{background:var(--ok);box-shadow:0 0 7px rgba(111,169,140,.8)}
+  .eng.warn .dot{background:var(--warn)}
+  .eng b{font-size:14.5px;font-weight:600;color:var(--ink-hi)}
+  .eng .st{margin-left:auto;font:10.5px var(--mono);letter-spacing:.08em;padding:2px 9px;border-radius:4px}
+  .eng.ok .st{color:var(--ok);background:var(--ok-soft);border:1px solid rgba(111,169,140,.4)}
+  .eng.warn .st{color:var(--warn);background:var(--warn-soft);border:1px solid rgba(194,161,92,.4)}
+  .eng p{font-size:12px;color:var(--ink-2);line-height:1.55}
+  .eng .path{font:11px var(--mono);color:var(--ink-3);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .eng .ops{display:flex;gap:10px;margin-top:9px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--ink);font-size:12.5px;cursor:pointer;transition:all .15s}
+  .btn:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:transparent;color:var(--ink-2)}
+  .btn.ghost:hover{color:var(--ink)}
+  .btn.accent{border-color:rgba(194,161,92,.5);color:var(--warn)}
+  .btn.accent:hover{background:var(--warn-soft)}
+
+  .ocr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .ocr{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 15px;position:relative;cursor:pointer;transition:border-color .15s}
+  .ocr:hover{border-color:var(--line-hi)}
+  .ocr.on{border-color:var(--glow);background:var(--glow-soft)}
+  .ocr .pick{position:absolute;top:14px;right:14px;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-hi)}
+  .ocr.on .pick{border-color:var(--glow)}
+  .ocr.on .pick::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--glow)}
+  .ocr b{font-size:14.5px;font-weight:600;color:var(--ink-hi);display:block;margin-bottom:3px}
+  .ocr .tagline{font:10.5px var(--mono);letter-spacing:.06em;margin-bottom:6px}
+  .ocr p{font-size:12px;color:var(--ink-2);line-height:1.5}
+  .ocr .foot{margin-top:7px;font:11px var(--mono);color:var(--ink-3)}
+
+  table.plug{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  .plug th{font:10.5px var(--mono);letter-spacing:.14em;color:var(--ink-3);text-align:left;padding:7px 14px;background:var(--panel-2);border-bottom:1px solid var(--line);font-weight:400}
+  .plug td{padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+  .plug tr:last-child td{border-bottom:0}
+  .plug .name b{color:var(--ink-hi);font-weight:600}
+  .plug .name span{display:block;font-size:11.5px;color:var(--ink-3)}
+  .plug .ver{font:12px var(--mono);color:var(--ink-2)}
+  .plug .sz{font:12px var(--mono);color:var(--ink-2)}
+  .plug .act{color:var(--glow);cursor:pointer;font-size:12.5px}
+  .plug .act:hover{text-decoration:underline}
+  .plug .st-w{color:var(--warn)} 
+
+  .caps{display:flex;flex-direction:column;gap:2px}
+  .cap-row{display:grid;grid-template-columns:200px 1fr 1fr 1fr;align-items:center;padding:8px 14px;background:var(--panel);font-size:13px}
+  .cap-row:nth-child(odd){background:var(--panel-2)}
+  .cap-row .head{font:10.5px var(--mono);letter-spacing:.12em;color:var(--ink-3)}
+  .cap-row .what{color:var(--ink)}
+  .cap-av{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+  .cap-av i{width:7px;height:7px;border-radius:50%;flex:none}
+  .cap-av.ok i{background:var(--ok);box-shadow:0 0 5px rgba(111,169,140,.7)}
+  .cap-av.no i{background:#3A4650}
+  .cap-av.no{color:var(--ink-3)}
+</style>
+</head>
+<body>
+  <aside class="spine">
+    <div class="sword">
+      <span class="pommel"></span><span class="grip"></span><span class="guard"></span><span class="blade"></span><span class="point"></span>
+    </div>
+    <nav>
+      <a title="首页"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9.5 10 3l7 6.5V17h-4.5v-4h-5v4H3z"/></svg></a>
+      <a title="转换"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h11m0 0-3-3m3 3-3 3M16 13H5m0 0 3-3m-3 3 3 3"/></svg></a>
+      <a title="页面"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="9" height="13" rx="1"/><path d="M8 3v13M8 6h3M8 9h3"/></svg></a>
+      <a title="提取"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="4.5" width="13" height="11" rx="1"/><path d="M3.5 8.5h13M8 8.5v7"/></svg></a>
+      <a title="OCR"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6V4h2M14 4h2v2M16 14v2h-2M6 16H4v-2"/><path d="M6.5 8h7M6.5 11h4.5"/></svg></a>
+      <a title="AI"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3v3M10 14v3M3 10h3M14 10h3M5.2 5.2l2 2M12.8 12.8l2 2M14.8 5.2l-2 2M7.2 12.8l-2 2"/></svg></a>
+      <a class="on" title="设置"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="2.6"/><path d="M10 3.2v2M10 14.8v2M3.2 10h2M14.8 10h2M5.4 5.4l1.4 1.4M13.2 13.2l1.4 1.4M14.6 5.4l-1.4 1.4M6.8 13.2l-1.4 1.4"/></svg></a>
+    </nav>
+    <div class="spine-foot">v0.1</div>
+  </aside>
+
+  <main>
+    <aside class="snav">
+      <div class="cap">SETTINGS</div>
+      <a>常规</a>
+      <a>外观</a>
+      <a>AI 模型</a>
+      <a>OCR 引擎</a>
+      <a class="on">引擎与插件</a>
+      <a>关于</a>
+    </aside>
+
+    <div class="content">
+      <h1>引擎与插件</h1>
+      <div class="sub">湛卢本体零依赖 · 引擎按需接入，全部在本机运行</div>
+
+      <div class="sec">
+        <h2>文档引擎</h2>
+        <div class="duo">
+          <div class="eng ok">
+            <div class="top"><span class="dot"></span><b>本机 Office</b><span class="st">已连接</span></div>
+            <p>Word · Excel · PowerPoint 2021，Office 文档与 PDF 互转的首选引擎，版式还原最佳。</p>
+            <div class="path">C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE</div>
+            <div class="ops"><button class="btn ghost">重新检测</button><span style="font:11px var(--mono);color:var(--ink-3)">上次检测 · 今日 08:41</span></div>
+          </div>
+          <div class="eng warn">
+            <div class="top"><span class="dot"></span><b>LibreOffice</b><span class="st">未安装</span></div>
+            <p>未装 Office 时的回落引擎，同样纯本地。装好后自动启用，无需配置。</p>
+            <div class="ops"><button class="btn accent">引导安装</button><span style="font:11px var(--mono);color:var(--ink-3)">约 350 MB · 官网下载</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>OCR 引擎</h2>
+        <div class="ocr-grid">
+          <div class="ocr on"><span class="pick"></span>
+            <b>AI 视觉模型</b><div class="tagline" style="color:var(--glow)">默认 · 已就绪</div>
+            <p>使用已配置的 DeepSeek 视觉模型识别文字与表格，无需额外安装。</p>
+            <div class="foot">依赖 · AI 模型配置</div>
+          </div>
+          <div class="ocr"><span class="pick"></span>
+            <b>PaddleOCR 插件</b><div class="tagline" style="color:var(--warn)">未安装</div>
+            <p>开源模型本地推理，完全离线，中文识别质量好。</p>
+            <div class="foot">86 MB · P0 后期提供</div>
+          </div>
+          <div class="ocr"><span class="pick"></span>
+            <b>RapidOCR 插件</b><div class="tagline" style="color:var(--warn)">未安装</div>
+            <p>更轻量的离线引擎，适合低配置机器与批量任务。</p>
+            <div class="foot">24 MB · P0 后期提供</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>插件管理</h2>
+        <table class="plug">
+          <tr><th>名称</th><th>版本</th><th>大小</th><th>状态</th><th style="width:90px"></th></tr>
+          <tr>
+            <td class="name"><b>PaddleOCR</b><span>离线 OCR · 中文优化</span></td>
+            <td class="ver">3.0.0</td><td class="sz">86 MB</td>
+            <td class="st-w">未安装</td><td class="act">安装</td>
+          </tr>
+          <tr>
+            <td class="name"><b>RapidOCR</b><span>轻量离线 OCR</span></td>
+            <td class="ver">1.4.0</td><td class="sz">24 MB</td>
+            <td class="st-w">未安装</td><td class="act">安装</td>
+          </tr>
+          <tr>
+            <td class="name"><b>ofdrw-Java</b><span>PDF → OFD 兜底引擎 · 需内置 JRE</span></td>
+            <td class="ver">2.3.0</td><td class="sz">118 MB</td>
+            <td class="st-w">未安装</td><td class="act">安装</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="sec" style="margin-bottom:6px">
+        <h2>能力总览</h2>
+        <div class="caps">
+          <div class="cap-row"><span class="head">CAPABILITY</span><span class="head">首选</span><span class="head">回落</span><span class="head">兜底</span></div>
+          <div class="cap-row"><span class="what">PDF → Word / Excel / PPT</span>
+            <span class="cap-av ok"><i></i>本机 Office</span><span class="cap-av no"><i></i>LibreOffice 未装</span><span class="cap-av no"><i></i>AI 增强 未配</span></div>
+          <div class="cap-row"><span class="what">Word / Excel / PPT → PDF</span>
+            <span class="cap-av ok"><i></i>本机 Office</span><span class="cap-av no"><i></i>LibreOffice 未装</span><span class="cap-av no"><i></i>—</span></div>
+          <div class="cap-row"><span class="what">PDF → OFD</span>
+            <span class="cap-av ok"><i></i>内置转换</span><span class="cap-av no"><i></i>ofdrw-Java 未装</span><span class="cap-av no"><i></i>—</span></div>
+          <div class="cap-row"><span class="what">OCR · 可搜索 PDF</span>
+            <span class="cap-av ok"><i></i>AI 视觉</span><span class="cap-av no"><i></i>PaddleOCR 未装</span><span class="cap-av no"><i></i>RapidOCR 未装</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>湛卢 · 转换中心</title>
+<script defer src="vendor/alpine.min.js"></script>
+<style>
+  :root{
+    --bg:#0B0F13;--panel:#12181F;--panel-2:#161E26;--canvas:#0E1319;
+    --line:#232D37;--line-hi:#33434F;
+    --ink:#C9D5DF;--ink-hi:#E4EDF3;--ink-2:#84929F;--ink-3:#586673;
+    --glow:#6FB6C8;--glow-soft:rgba(111,182,200,.12);--glow-line:rgba(111,182,200,.45);
+    --ok:#6FA98C;--ok-soft:rgba(111,169,140,.12);
+    --warn:#C2A15C;--warn-soft:rgba(194,161,92,.12);
+    --danger:#C47A6E;
+    --mono:'Consolas','Courier New',monospace;
+    --sans:'Segoe UI','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1280px;height:900px}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans);overflow:hidden;display:flex}
+  [x-cloak]{display:none!important}
+  :focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes blink{50%{opacity:.35}}
+
+  .spine{width:76px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:18px 0 14px;flex:none}
+  .sword{height:88px;display:flex;flex-direction:column;align-items:center;margin-bottom:26px}
+  .sword .pommel{width:5px;height:5px;border-radius:50%;background:#9FB6C0}
+  .sword .grip{width:2px;height:10px;background:#5A6B76}
+  .sword .guard{width:22px;height:2px;background:#8FA5B0;margin:1px 0}
+  .sword .blade{width:2px;height:58px;background:linear-gradient(180deg,#D9E6EC,#7FA8B6 60%,#3E5460)}
+  .sword .point{width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:7px solid #D9E6EC}
+  .spine nav{display:flex;flex-direction:column;gap:6px;flex:1}
+  .spine nav a{width:46px;height:46px;display:flex;align-items:center;justify-content:center;color:var(--ink-3);position:relative;border-radius:9px;transition:color .18s,background .18s}
+  .spine nav a:hover{color:var(--ink);background:var(--panel-2)}
+  .spine nav a.on{color:var(--glow);background:var(--glow-soft)}
+  .spine nav a.on::before{content:'';position:absolute;left:-15px;top:12px;bottom:12px;width:2px;background:var(--glow);border-radius:2px;box-shadow:0 0 8px rgba(111,182,200,.7)}
+  .spine-foot{font:10px var(--mono);color:var(--ink-3)}
+
+  main{flex:1;display:flex;flex-direction:column;padding:22px 30px 0;min-width:0}
+  .head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;animation:rise .3s cubic-bezier(.2,.7,.3,1) both}
+  .head h1{font-size:20px;font-weight:600;letter-spacing:.08em;color:var(--ink-hi)}
+  .head span{font-size:12.5px;color:var(--ink-3)}
+
+  .cols{flex:1;display:flex;gap:22px;min-height:0}
+  .left{flex:1.15;display:flex;flex-direction:column;gap:14px;min-width:0;animation:rise .3s cubic-bezier(.2,.7,.3,1) .06s both}
+  .right{width:372px;flex:none;display:flex;flex-direction:column;animation:rise .3s cubic-bezier(.2,.7,.3,1) .12s both}
+
+  .drop{height:120px;border:1.5px dashed var(--line-hi);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-2);cursor:pointer;transition:border-color .18s,background .18s}
+  .drop:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  .drop b{font-size:14px;font-weight:500;color:var(--ink)}
+  .drop span{font:11px var(--mono);color:var(--ink-3);letter-spacing:.05em}
+
+  .list-title{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .list-title h2{font-size:14px;font-weight:600;color:var(--ink-hi)}
+  .list-title span{font-size:12px;color:var(--ink-3)}
+
+  .files{display:flex;flex-direction:column;gap:8px}
+  .file{display:flex;align-items:center;gap:12px;height:58px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:0 14px;transition:border-color .15s}
+  .file:hover{border-color:var(--line-hi)}
+  .file .h{color:var(--ink-3);cursor:grab;font-size:13px}
+  .file .badge{font:10.5px var(--mono);color:var(--glow);border:1px solid var(--glow-line);border-radius:4px;padding:1px 7px;letter-spacing:.1em;flex:none}
+  .file .n{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+  .file .x{color:var(--ink-3);cursor:pointer;font-size:12px;padding:4px}
+  .file .x:hover{color:var(--danger)}
+  .fstat{font:11.5px var(--mono);flex:none;width:150px;text-align:right;color:var(--ink-3)}
+  .fstat.ok{color:var(--ok)}
+  .fstat.run{color:var(--glow)}
+  .fstat .dots{display:inline-flex;gap:2px;margin-left:6px;vertical-align:1px}
+  .fstat .dots i{width:3px;height:3px;border-radius:50%;background:var(--glow);animation:blink 1.2s infinite}
+  .fstat .dots i:nth-child(2){animation-delay:.2s}.fstat .dots i:nth-child(3){animation-delay:.4s}
+  .minibar{flex:none;width:120px;height:4px;background:#1B232C;border-radius:2px;overflow:hidden}
+  .minibar i{display:block;height:100%;background:var(--glow);border-radius:2px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  .card h3{font-size:13px;font-weight:600;color:var(--ink-hi);letter-spacing:.1em;margin-bottom:12px}
+  .fmt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .fmt{height:44px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;gap:7px;font:12px var(--mono);color:var(--ink-2);cursor:pointer;transition:border-color .15s,background .15s,transform .1s;letter-spacing:.06em}
+  .fmt:hover{border-color:var(--line-hi);color:var(--ink)}
+  .fmt:active{transform:scale(.97)}
+  .fmt.on{border-color:var(--glow);background:var(--glow-soft);color:var(--glow)}
+  .opt{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .opt label{width:76px;font-size:12.5px;color:var(--ink-2);flex:none}
+  .sel{flex:1;height:34px;background:var(--canvas);border:1px solid var(--line);border-radius:7px;display:flex;align-items:center;padding:0 11px;font-size:12.5px;color:var(--ink);justify-content:space-between}
+  .sel::after{content:'▾';color:var(--ink-3);font-size:10px}
+  .engine{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .engine:last-child{border:0}
+  .engine .dot{width:7px;height:7px;border-radius:50%;background:#3A4650;flex:none}
+  .engine.ok .dot{background:var(--ok);box-shadow:0 0 6px rgba(111,169,140,.8)}
+  .engine.warn .dot{background:var(--warn)}
+  .engine b{font-size:13px;font-weight:500;color:var(--ink)}
+  .engine span{font-size:11.5px;color:var(--ink-3)}
+  .engine .act{margin-left:auto;font-size:12px;color:var(--glow);cursor:pointer}
+  .engine .act:hover{text-decoration:underline}
+  .switch{width:38px;height:21px;border-radius:11px;background:#2A343E;position:relative;cursor:pointer;flex:none;transition:background .2s;margin-left:auto}
+  .switch::after{content:'';position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#7E8C99;transition:transform .18s cubic-bezier(.2,.7,.3,1),background .18s}
+  .switch.on{background:rgba(111,182,200,.35)}
+  .switch.on::after{transform:translateX(17px);background:var(--glow)}
+  .radio{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--ink-2);cursor:pointer}
+  .radio i{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--line-hi);position:relative;flex:none}
+  .radio.on{color:var(--ink)}
+  .radio.on i{border-color:var(--glow)}
+  .radio.on i::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--glow)}
+  .radio .path{font:11px var(--mono);color:var(--ink-3)}
+
+  .runbar{margin-top:auto;display:flex;align-items:center;gap:14px;padding:16px 2px 20px}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 22px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--ink);font-size:14px;cursor:pointer;transition:border-color .15s,background .15s,transform .1s}
+  .btn:hover{border-color:var(--glow-line);background:var(--glow-soft)}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--glow);border-color:var(--glow);color:#0B0F13;font-weight:600}
+  .btn.primary:hover{background:#82C2D3}
+  .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+  .runbar .hint{font-size:12px;color:var(--ink-3)}
+  .runbar .hint b{color:var(--glow);font-weight:500}
+  .runbar .right-hint{margin-left:auto;font:11px var(--mono);color:var(--ink-3)}
+</style>
+</head>
+<body>
+  <aside class="spine">
+    <div class="sword">
+      <span class="pommel"></span><span class="grip"></span><span class="guard"></span><span class="blade"></span><span class="point"></span>
+    </div>
+    <nav>
+      <a title="首页"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9.5 10 3l7 6.5V17h-4.5v-4h-5v4H3z"/></svg></a>
+      <a class="on" title="转换"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h11m0 0-3-3m3 3-3 3M16 13H5m0 0 3-3m-3 3 3 3"/></svg></a>
+      <a title="页面"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="3" width="9" height="13" rx="1"/><path d="M8 3v13M8 6h3M8 9h3"/></svg></a>
+      <a title="提取"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="4.5" width="13" height="11" rx="1"/><path d="M3.5 8.5h13M8 8.5v7"/></svg></a>
+      <a title="OCR"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6V4h2M14 4h2v2M16 14v2h-2M6 16H4v-2"/><path d="M6.5 8h7M6.5 11h4.5"/></svg></a>
+      <a title="AI"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3v3M10 14v3M3 10h3M14 10h3M5.2 5.2l2 2M12.8 12.8l2 2M14.8 5.2l-2 2M7.2 12.8l-2 2"/></svg></a>
+      <a title="设置"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="2.6"/><path d="M10 3.2v2M10 14.8v2M3.2 10h2M14.8 10h2M5.4 5.4l1.4 1.4M13.2 13.2l1.4 1.4M14.6 5.4l-1.4 1.4M6.8 13.2l-1.4 1.4"/></svg></a>
+    </nav>
+    <div class="spine-foot">v0.1</div>
+  </aside>
+
+  <main x-data="{st:(new URLSearchParams(location.search).get('state'))||'idle'}">
+    <div class="head"><h1>转换中心</h1><span>批量 · 引擎自动选择 · 输出保存在本机</span></div>
+
+    <div class="cols">
+      <div class="left">
+        <div class="drop">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M13 17V5m0 0-4.5 4.5M13 5l4.5 4.5"/><path d="M4 17v3.5h18V17"/></svg>
+          <b>拖入文件，或点击选择</b>
+          <span>PDF · OFD · DOCX/XLSX/PPTX · PNG/JPG（多张） · MD · TXT · HTML</span>
+        </div>
+
+        <div>
+          <div class="list-title"><h2>已选文件</h2><span>拖动调整顺序 · 3 个文件</span></div>
+          <div class="files">
+            <div class="file">
+              <span class="h">≡</span><span class="badge">PDF</span>
+              <span class="n">湛卢-功能清单.pdf</span>
+              <span class="fstat" x-show="st==='idle'">6 页 · 148 KB</span>
+              <span class="fstat ok" x-show="st!=='idle'" x-cloak>✓ DOCX · 00:12</span>
+            </div>
+            <div class="file">
+              <span class="h">≡</span><span class="badge">PDF</span>
+              <span class="n">2026年度审计报告.pdf</span>
+              <span class="fstat" x-show="st==='idle'">86 页 · 4.2 MB</span>
+              <span class="fstat" x-show="st==='running'" x-cloak>42%<span class="dots"><i></i><i></i><i></i></span></span>
+              <span class="fstat ok" x-show="st==='done'" x-cloak>✓ DOCX · 00:58</span>
+              <span class="minibar" x-show="st!=='idle'" x-cloak style="margin-left:10px"><i style="width:42%"></i></span>
+            </div>
+            <div class="file">
+              <span class="h">≡</span><span class="badge">PDF</span>
+              <span class="n">购房合同（扫描件）.pdf</span>
+              <span class="fstat" x-show="st==='idle'">12 页 · 加密 · 8.1 MB</span>
+              <span class="fstat" x-show="st==='running'" x-cloak>排队中</span>
+              <span class="fstat ok" x-show="st==='done'" x-cloak>✓ DOCX · 01:20</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="card">
+          <h3>目标格式</h3>
+          <div class="fmt-grid">
+            <div class="fmt on">DOCX</div><div class="fmt">XLSX</div><div class="fmt">PPTX</div>
+            <div class="fmt">PNG</div><div class="fmt">JPG</div><div class="fmt">MD</div>
+            <div class="fmt">TXT</div><div class="fmt">OFD</div><div class="fmt">PDF</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>选项</h3>
+          <div class="opt"><label>页码范围</label><div class="sel">全部页面</div></div>
+          <div class="opt"><label>图片 DPI</label><div class="sel">150（均衡）</div></div>
+          <div class="opt" style="margin-bottom:0"><label>压缩质量</label><div class="sel">均衡</div></div>
+        </div>
+
+        <div class="card">
+          <h3>引擎</h3>
+          <div class="engine ok"><span class="dot"></span><div><b>本机 Office</b> <span>Word · Excel · PowerPoint 2021</span></div><span class="act">详情</span></div>
+          <div class="engine warn"><span class="dot"></span><div><b>LibreOffice</b> <span>未安装 · 无 Office 时的回落引擎</span></div><span class="act">引导安装</span></div>
+          <div class="engine"><span class="dot" style="background:var(--glow);opacity:.55"></span><div><b>AI 版式增强</b> <span>复杂版式用视觉模型重排</span></div><span class="switch" title="需先配置模型"></span></div>
+        </div>
+
+        <div class="card" style="margin-bottom:0">
+          <h3>输出位置</h3>
+          <div class="radio on"><i></i>与原文件同目录</div>
+          <div class="radio"><i></i>统一保存到<span class="path">D:\Documents\湛卢导出\</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="runbar">
+      <button class="btn primary" x-show="st==='idle'" @click="st='running'">开始转换 · 3 个文件</button>
+      <button class="btn primary" x-show="st==='running'" x-cloak disabled>转换中 42%<span class="dots" style="display:inline-flex;gap:2px;margin-left:6px"><i style="width:4px;height:4px;border-radius:50%;background:#0B0F13;animation:blink 1.2s infinite"></i></span></button>
+      <button class="btn" x-show="st==='done'" x-cloak style="border-color:var(--ok);color:var(--ok)">打开输出文件夹</button>
+      <span class="hint" x-show="st==='running'" x-cloak>PDF → DOCX · 本机 Office 引擎 · 预计 <b>00:41</b> 完成</span>
+      <span class="hint" x-show="st==='done'" x-cloak style="color:var(--ok)">3 个文件全部完成 · 输出 2.8 MB</span>
+      <span class="right-hint">CTRL+ENTER 开始</span>
+    </div>
+  </main>
+</body>
+</html>
