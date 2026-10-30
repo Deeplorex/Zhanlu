@@ -245,7 +245,15 @@ def api_tasks_clear(_q, _b) -> dict:
 
 # ---------------------------------------------------------------- API：系统
 
-_PS_PICK_FOLDER = (
+# 弹窗宿主 powershell.exe 不带 DPI 感知清单，>100% 缩放时整窗被位图拉伸发虚；
+# 弹窗前把该进程声明为按显示器 DPI 感知（已声明过时调用失败，忽略返回值即可）。
+_PS_DPI_AWARE = (
+    "Add-Type -Namespace Zhanlu -Name Dpi -MemberDefinition"
+    " '[DllImport(\"shcore.dll\")] public static extern int SetProcessDpiAwareness(int value);' | Out-Null;"
+    " [Zhanlu.Dpi]::SetProcessDpiAwareness(2) | Out-Null;"
+)
+
+_PS_PICK_FOLDER = _PS_DPI_AWARE + (
     "Add-Type -AssemblyName System.Windows.Forms | Out-Null;"
     "$d = New-Object System.Windows.Forms.FolderBrowserDialog;"
     "$d.Description = '选择湛卢 PDF 的保存位置';"
@@ -254,7 +262,7 @@ _PS_PICK_FOLDER = (
     "{ Write-Output $d.SelectedPath }"
 )
 
-_PS_PICK_PDFS = (
+_PS_PICK_PDFS = _PS_DPI_AWARE + (
     "Add-Type -AssemblyName System.Windows.Forms | Out-Null;"
     "$d = New-Object System.Windows.Forms.OpenFileDialog;"
     "$d.Title = '打开 PDF';"

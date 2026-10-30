@@ -1010,6 +1010,34 @@ class TestServerApi(unittest.TestCase):
         self.assertEqual(len(PdfReader(str(dir_a / "合集.pdf")).pages), 4)
         self.assertFalse((dir_b / "合集.pdf").exists())
 
+    def test_split_source_dir_numbers_outputs(self):
+        """2026-10-30：拆分同样可选与源文件同目录；多份输出重名自动编号，不覆盖已有文件。"""
+        dir_a = TMP / "拆分同目录"
+        dir_a.mkdir(parents=True, exist_ok=True)
+        (fid,) = [f["id"] for f in self._register_local([make_pdf(dir_a / "承诺书.pdf", 4)])]
+
+        # 预占第一份产物的同名文件，模拟源目录里已有上次拆分结果
+        (dir_a / "承诺书-01-p001-p002.pdf").write_bytes(self.pdf_bytes)
+
+        prev = self._post("/api/jobs/preview", {"kind": "split", "params": {
+            "id": fid, "mode": "every", "every": 2, "stem": "承诺书", "dir": "@source"}})
+        self.assertTrue(prev["ok"], str(prev))
+        self.assertTrue(prev["numbered"], str(prev))
+        self.assertEqual(prev["dir"], str(dir_a.resolve()))
+        self.assertEqual([o["name"] for o in prev["outputs"]],
+                         ["承诺书-01-p001-p002（1）.pdf", "承诺书-02-p003-p004.pdf"])
+
+        run = self._post("/api/jobs/run", {"kind": "split", "params": {
+            "id": fid, "mode": "every", "every": 2, "stem": "承诺书", "dir": "@source"}})
+        t = self._wait_task(run["id"])
+        self.assertEqual(t["status"], "done", str(t.get("error")))
+        self.assertTrue((dir_a / "承诺书-01-p001-p002（1）.pdf").exists(), str(t))
+        self.assertTrue((dir_a / "承诺书-02-p003-p004.pdf").exists(), str(t))
+        self.assertEqual(len(PdfReader(str(dir_a / "承诺书-01-p001-p002（1）.pdf")).pages), 2)
+        # 已有文件与源文件都未被改动
+        self.assertEqual((dir_a / "承诺书-01-p001-p002.pdf").read_bytes(), self.pdf_bytes)
+        self.assertEqual(len(PdfReader(str(dir_a / "承诺书.pdf")).pages), 4)
+
     def test_register_picked_reuses_entry_and_rejects_non_pdf(self):
         """原生对话框选择的路径按可信通道登记：真实 source_dir、重复选择复用、非 PDF 拒绝。"""
         from zhanlu import server as srv

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { AppCtx } from "../../app/AppContext";
 import { openPath } from "../../shared/api";
-import { FolderPicker, useJob } from "../../shared/workflow";
+import { useJob } from "../../shared/workflow";
+import SaveLocationSelect, { type SaveMode } from "../../shared/SaveLocationSelect";
 import type { FileEntry } from "../../shared/types";
 import DropZone from "../../shared/components/DropZone";
 import SwordProgress, { swordPct } from "../../shared/SwordProgress";
@@ -26,6 +27,8 @@ export default function SplitTask() {
   const [ranges, setRanges] = useState("");
   const [stem, setStem] = useState("");
   const [dir, setDir] = useState<string | null>(null);
+  const [saveMode, setSaveMode] = useState<SaveMode>("default");
+  const dirParam = saveMode === "source" ? "@source" : saveMode === "custom" ? dir || undefined : undefined;
 
   useEffect(() => {
     if (taskSeed?.kind === "split" && taskSeed.files[0]) {
@@ -40,10 +43,10 @@ export default function SplitTask() {
     if (mode === "boundary") params.boundary = Number(boundary) || 0;
     if (mode === "every") params.every = Number(every) || 0;
     if (mode === "ranges") params.ranges = ranges;
-    if (dir) params.dir = dir;
+    if (dirParam) params.dir = dirParam;
     job.setParams(params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file?.id, mode, boundary, every, ranges, stem, dir]);
+  }, [file?.id, mode, boundary, every, ranges, stem, dirParam]);
 
   const outCount = job.preview?.outputs?.length || 0;
   useEffect(() => {
@@ -195,9 +198,13 @@ export default function SplitTask() {
               {job.preview && !job.preview.ok && job.preview.error && <p className="wf-error">{job.preview.error}</p>}
               {job.preview?.warnings?.map((w, i) => <p key={i} className="wf-warn">⚠ {w}</p>)}
 
-              <span className="convert-label">保存位置</span>
-              <FolderPicker dir={dir} onPick={setDir} />
-              <p className="task-card-note">若文件同名，请更名或换目录；不会覆盖已有文件。</p>
+              <div className="field"><span>保存位置</span>
+                <SaveLocationSelect mode={saveMode} customDir={dir} onMode={setSaveMode} onCustomDir={setDir} />
+                {saveMode === "source" && file?.source_dir && <p className="save-dir-hint" title={file.source_dir}>{file.source_dir}</p>}
+              </div>
+              <p className="task-card-note">{saveMode === "source"
+                ? "与源文件同目录保存；同名自动追加编号，不会覆盖已有文件。"
+                : "若文件同名，请更名或换目录；不会覆盖已有文件。"}</p>
 
               <button type="button" className="convert-run" disabled={!job.preview?.ok || !file} onClick={run}>
                 开始拆分 →

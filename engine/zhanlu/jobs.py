@@ -224,14 +224,20 @@ def preview_split(params: dict) -> dict:
         shown = ",".join(_page_list_summary(plan["skipped"]))
         warnings.append(f"自定义范围未导出第 {shown}（本次只生成所选范围的文件）。")
     return _preview_result(params.get("dir"), outs,
-                           f"{len(outs)} 个 PDF · 共 {exported} 页", warnings)
+                           f"{len(outs)} 个 PDF · 共 {exported} 页", warnings,
+                           sources=[entry])
 
 
 def run_split(params: dict, ctx) -> dict:
     p, entry, total, plan, stem = _split_plan_params(params)
-    d = _resolve_dir(params.get("dir"))
+    source_mode = params.get("dir") == SOURCE_DIR_OPT
+    d = _resolve_dir(params.get("dir"), sources=[entry])
     names = [f"{stem}-{n}" for n in plan["names"]]
-    _check_run_target(d, names)
+    if source_mode:
+        # 同目录：重名自动编号，不因冲突阻止执行（与转换/合并一致）
+        _require_writable(d)
+    else:
+        _check_run_target(d, names)
     tmp = ctx.temp_root
     made = []
     for i, seg in enumerate(plan["segments"]):
@@ -245,7 +251,8 @@ def run_split(params: dict, ctx) -> dict:
         ctx.check()
         indices = list(range(seg["start"] - 1, seg["end"]))
         tmp_out = tmp / names[i]
-        entry_out = _deliver(tmp_out, d / names[i], ctx=ctx)
+        entry_out = (_deliver_numbered(tmp_out, d, names[i], ctx=ctx) if source_mode
+                     else _deliver(tmp_out, d / names[i], ctx=ctx))
         ctx.output(entry_out)
         store.set_pages(entry_out["id"], len(indices))
         made.append(entry_out)
