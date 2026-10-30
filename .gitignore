@@ -30,5 +30,6 @@ engine/.tmp-test/
 
 # 本机产物与抓取缓存
 /output/
+.figma/
 /figma-*.json
 /figma-tree-*.txt
