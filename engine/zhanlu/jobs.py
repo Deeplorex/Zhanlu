@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from . import config, localai
-from .core import document_ai, ocrpdf, pdfops, topdf
+from .core import document_ai, export, ocrpdf, ofd, pdfops, tables, topdf
 from .store import Store, source_dir_of
 from .tasks import Cancelled, TaskHub
 
@@ -159,32 +159,25 @@ def _pages_of(entry: dict, p: Path) -> int:
 
 def _preview_result(dir_opt, names_with_pages: list[dict], summary: str,
                     warnings: list[str] | None = None, sources: list[dict] | None = None) -> dict:
-    source_mode = dir_opt == SOURCE_DIR_OPT
+    """预览统一展示自动编号后的最终交付名（v0.2 用户决定：任何保存位置重名都追加（N），
+    绝不覆盖、绝不阻断执行）。"""
     d = _resolve_dir(dir_opt, sources)
     names = [n["name"] for n in names_with_pages]
-    if source_mode:
-        # 同目录：预览展示自动编号后的最终交付名，重名不阻止执行
-        numbered = _numbered_plan(d, names)
-        names_with_pages = [dict(n, name=nn) for n, nn in zip(names_with_pages, numbered)]
-        conflicts: list[str] = []
-    else:
-        conflicts = [n for n in names if (d / n).exists()]
+    numbered = _numbered_plan(d, names)
+    names_with_pages = [dict(n, name=nn) for n, nn in zip(names_with_pages, numbered)]
     writable_error = _dir_writable(d)
     out = {
-        "ok": not writable_error and not conflicts,
+        "ok": not writable_error,
         "summary": summary,
         "outputs": names_with_pages,
         "warnings": warnings or [],
         "dir": str(d),
         "writable_error": writable_error,
-        "conflicts": conflicts,
-        "numbered": source_mode,
+        "conflicts": [],
+        "numbered": True,
     }
     if writable_error:
         out["error"] = writable_error
-    elif conflicts:
-        out["error"] = "目标已有同名文件：" + "、".join(conflicts[:5]) + (
-            " 等" if len(conflicts) > 5 else "") + "。请更名或换目录。"
     return out
 
 
@@ -230,14 +223,9 @@ def preview_split(params: dict) -> dict:
 
 def run_split(params: dict, ctx) -> dict:
     p, entry, total, plan, stem = _split_plan_params(params)
-    source_mode = params.get("dir") == SOURCE_DIR_OPT
     d = _resolve_dir(params.get("dir"), sources=[entry])
     names = [f"{stem}-{n}" for n in plan["names"]]
-    if source_mode:
-        # 同目录：重名自动编号，不因冲突阻止执行（与转换/合并一致）
-        _require_writable(d)
-    else:
-        _check_run_target(d, names)
+    _require_writable(d)
     tmp = ctx.temp_root
     made = []
     for i, seg in enumerate(plan["segments"]):
@@ -251,8 +239,7 @@ def run_split(params: dict, ctx) -> dict:
         ctx.check()
         indices = list(range(seg["start"] - 1, seg["end"]))
         tmp_out = tmp / names[i]
-        entry_out = (_deliver_numbered(tmp_out, d, names[i], ctx=ctx) if source_mode
-                     else _deliver(tmp_out, d / names[i], ctx=ctx))
+        entry_out = _deliver_numbered(tmp_out, d, names[i], ctx=ctx)
         ctx.output(entry_out)
         store.set_pages(entry_out["id"], len(indices))
         made.append(entry_out)
@@ -305,15 +292,13 @@ def run_merge(params: dict, ctx) -> dict:
     name = _safe_name(str(params.get("name") or "合并卷宗.pdf"))
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
-    source_mode = params.get("dir") == SOURCE_DIR_OPT
     d = _resolve_dir(params.get("dir"), sources=[parts[0]["entry"]])
-    _require_writable(d) if source_mode else _check_run_target(d, [name])
+    _require_writable(d)
     ctx.progress(0.1, "读取页面")
     tmp_out = ctx.temp_root / name
     pdfops.merge([{"path": pt["path"], "pages": pt["pages"]} for pt in parts], tmp_out)
     ctx.check()
-    entry_out = (_deliver_numbered(tmp_out, d, name, ctx=ctx) if source_mode
-                 else _deliver(tmp_out, d / name, display=name, ctx=ctx))
+    entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
     ctx.output(entry_out)
     total = sum(pt["count"] for pt in parts)
     entry_out = dict(entry_out, pages=total)
@@ -349,12 +334,12 @@ def run_organize(params: dict, ctx) -> dict:
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
     d = _resolve_dir(params.get("dir"))
-    _check_run_target(d, [name])
+    _require_writable(d)
     ctx.progress(0.2, "生成新文档")
     tmp_out = ctx.temp_root / name
     pdfops.organize(p, params["plan"], tmp_out)
     ctx.check()
-    entry_out = _deliver(tmp_out, d / name, display=name, ctx=ctx)
+    entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
     ctx.output(entry_out)
     store.set_pages(entry_out["id"], summary["count"])
     return {"file": dict(entry_out, pages=summary["count"]), "summary": summary}
@@ -366,15 +351,15 @@ def preview_convert_pdf(params: dict) -> dict:
     p, entry = _entry_path(params.get("id"))
     total = _pages_of(entry, p)
     target = str(params.get("target") or "").lower()
-    if target not in ("png", "jpg", "txt", "md"):
-        raise pdfops.OpError("目标格式仅支持 PNG、JPEG、TXT 或 Markdown")
+    if target not in ("png", "jpg", "txt", "md", "docx", "xlsx", "csv", "pptx"):
+        raise pdfops.OpError("目标格式仅支持 PNG、JPEG、TXT、Markdown、Word、Excel、CSV 或 PPT")
     prefix = _safe_name(str(params.get("prefix") or Path(entry["name"]).stem))
     idx = pdfops.parse_pages(params.get("pages"), total)
     selected = idx if idx is not None else list(range(total))
     if not selected:
         raise pdfops.OpError("所选页码范围内没有页面")
     warnings = []
-    if target in ("txt", "md"):
+    if target in ("txt", "md", "docx"):
         stats = pdfops.text_page_stats(p, sample_limit=min(total, 8))
         empty = stats["checked"] - len(stats["text_pages"])
         if stats["checked"] and empty >= max(1, stats["checked"] // 2):
@@ -383,12 +368,61 @@ def preview_convert_pdf(params: dict) -> dict:
             outs = [{"name": f"{prefix}.txt", "pages": len(selected), "note": "一份 TXT，保留页分隔标记"}]
             return _preview_result(params.get("dir"), outs,
                                    f"1 个 TXT · {len(selected)} 页内容", warnings, sources=[entry])
-        outs = [{"name": f"{prefix}.md", "pages": len(selected), "note": "一份 Markdown · 标题与列表按原文字层级"}]
+        if target == "md":
+            outs = [{"name": f"{prefix}.md", "pages": len(selected), "note": "一份 Markdown · 标题与列表按原文字层级"}]
+            return _preview_result(params.get("dir"), outs,
+                                   f"1 个 Markdown · {len(selected)} 页内容", warnings, sources=[entry])
+        outs = [{"name": f"{prefix}.docx", "pages": len(selected),
+                 "note": "一份 Word · 文字按页整理（基础版，不含原版式）"}]
         return _preview_result(params.get("dir"), outs,
-                               f"1 个 Markdown · {len(selected)} 页内容", warnings, sources=[entry])
+                               f"1 个 Word · {len(selected)} 页内容", warnings, sources=[entry])
+    if target == "pptx":
+        dpi = int(params.get("dpi") or 150)
+        if dpi not in (96, 150, 300):
+            raise pdfops.OpError("DPI 仅支持 96 / 150 / 300")
+        outs = [{"name": f"{prefix}.pptx", "pages": len(selected),
+                 "note": "一份 PPT · 每页一张幻灯片图片（16:9）"}]
+        return _preview_result(params.get("dir"), outs,
+                               f"1 个 PPT · {len(selected)} 页 · {dpi} DPI", warnings, sources=[entry])
+    if target in ("xlsx", "csv"):
+        probe = selected[:8]
+        try:
+            data = tables.extract(p, pages=",".join(str(i + 1) for i in probe))
+        except pdfops.OpError:
+            data = []
+        n_tables = sum(len(d["tables"]) for d in data)
+        if not n_tables:
+            return {
+                "ok": False,
+                "error": f"所选页面未检测到表格（已检查前 {len(probe)} 页）。请调整页码范围后重试。",
+                "outputs": [], "warnings": [],
+                "dir": str(_resolve_dir(params.get("dir"), sources=[entry])),
+                "conflicts": [], "summary": "未检测到表格",
+            }
+        if len(selected) > len(probe):
+            warnings.append(f"表格逐页提取较慢：本次共 {len(selected)} 页，预览仅检查了前 {len(probe)} 页。")
+        label = "Excel" if target == "xlsx" else "CSV"
+        outs = [{"name": f"{prefix}.{target}", "pages": len(selected),
+                 "note": f"检测到 {n_tables} 张表格（检查了前 {len(probe)} 页）"}]
+        return _preview_result(params.get("dir"), outs,
+                               f"1 个 {label} · 检测到 {n_tables} 张表格", warnings, sources=[entry])
     outs = [{"name": f"{prefix}-p{i + 1:03d}.{target}", "pages": 1} for i in selected]
     return _preview_result(params.get("dir"), outs,
                            f"{len(outs)} 张 {target.upper()} · 按原页号命名", warnings, sources=[entry])
+
+
+def _extract_tables_chunked(p: Path, selected: list[int], ctx, phase: float = 0.85) -> list[dict]:
+    """按 tables.MAX_PAGES_PER_CALL 分块提取所选页的表格，全程可取消。"""
+    data: list[dict] = []
+    chunks = [selected[i:i + tables.MAX_PAGES_PER_CALL]
+              for i in range(0, len(selected), tables.MAX_PAGES_PER_CALL)]
+    for n, chunk in enumerate(chunks):
+        ctx.check()
+        spec = ",".join(str(i + 1) for i in chunk)
+        data.extend(tables.extract(p, pages=spec))
+        done = min((n + 1) * tables.MAX_PAGES_PER_CALL, len(selected))
+        ctx.progress(phase * (n + 1) / len(chunks), f"已提取 {done}/{len(selected)} 页")
+    return data
 
 
 def run_convert_pdf(params: dict, ctx) -> dict:
@@ -396,7 +430,6 @@ def run_convert_pdf(params: dict, ctx) -> dict:
     total = _pages_of(entry, p)
     target = str(params.get("target") or "").lower()
     prefix = _safe_name(str(params.get("prefix") or Path(entry["name"]).stem))
-    source_mode = params.get("dir") == SOURCE_DIR_OPT
     d = _resolve_dir(params.get("dir"), sources=[entry])
     if target in ("png", "jpg"):
         dpi = int(params.get("dpi") or 150)
@@ -405,7 +438,7 @@ def run_convert_pdf(params: dict, ctx) -> dict:
         idx = pdfops.parse_pages(params.get("pages"), total)
         selected = idx if idx is not None else list(range(total))
         names = [f"{prefix}-p{i + 1:03d}.{target}" for i in selected]
-        _require_writable(d) if source_mode else _check_run_target(d, names)
+        _require_writable(d)
         import pypdfium2 as pdfium
 
         doc = pdfium.PdfDocument(str(p))
@@ -423,15 +456,14 @@ def run_convert_pdf(params: dict, ctx) -> dict:
         ctx.check()
         for n, name in enumerate(names):
             ctx.check()
-            entry_out = (_deliver_numbered(ctx.temp_root / name, d, name, ctx=ctx) if source_mode
-                         else _deliver(ctx.temp_root / name, d / name, ctx=ctx))
+            entry_out = _deliver_numbered(ctx.temp_root / name, d, name, ctx=ctx)
             ctx.output(entry_out)
             made.append(entry_out)
             ctx.progress(0.9 + 0.1 * (n + 1) / len(names), f"已导出 {n + 1}/{len(names)} 页")
         return {"files": made}
     if target == "txt":
         name = f"{prefix}.txt"
-        _require_writable(d) if source_mode else _check_run_target(d, [name])
+        _require_writable(d)
         idx = pdfops.parse_pages(params.get("pages"), total)
         selected = idx if idx is not None else list(range(total))
         parts = []
@@ -447,13 +479,12 @@ def run_convert_pdf(params: dict, ctx) -> dict:
             raise pdfops.OpError("所选页没有可提取的文字，请先完成 OCR。")
         tmp_out = ctx.temp_root / name
         tmp_out.write_text("\n\n".join(parts) + "\n", encoding="utf-8")
-        entry_out = (_deliver_numbered(tmp_out, d, name, ctx=ctx) if source_mode
-                     else _deliver(tmp_out, d / name, display=name, ctx=ctx))
+        entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
         ctx.output(entry_out)
         return {"files": [entry_out]}
     if target == "md":
         name = f"{prefix}.md"
-        _require_writable(d) if source_mode else _check_run_target(d, [name])
+        _require_writable(d)
         idx = pdfops.parse_pages(params.get("pages"), total)
         selected = idx if idx is not None else list(range(total))
         parts = []
@@ -467,11 +498,70 @@ def run_convert_pdf(params: dict, ctx) -> dict:
             raise pdfops.OpError("所选页没有可提取的文字，请先完成 OCR。")
         tmp_out = ctx.temp_root / name
         tmp_out.write_text(body + "\n", encoding="utf-8")
-        entry_out = (_deliver_numbered(tmp_out, d, name, ctx=ctx) if source_mode
-                     else _deliver(tmp_out, d / name, display=name, ctx=ctx))
+        entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
         ctx.output(entry_out)
         return {"files": [entry_out]}
-    raise pdfops.OpError("目标格式仅支持 PNG、JPEG、TXT 或 Markdown")
+    if target == "docx":
+        name = f"{prefix}.docx"
+        _require_writable(d)
+        idx = pdfops.parse_pages(params.get("pages"), total)
+        spec = ",".join(str(i + 1) for i in idx) if idx is not None else None
+        ctx.progress(0.1, "整理文字")
+        tmp_out = ctx.temp_root / name
+        export.pdf_to_docx(p, tmp_out, pages=spec,
+                           progress=lambda done, ttl: ctx.progress(
+                               0.1 + 0.8 * done / max(1, ttl), f"已整理 {done}/{ttl} 页"))
+        ctx.check()
+        entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
+        ctx.output(entry_out)
+        return {"files": [entry_out]}
+    if target == "pptx":
+        dpi = int(params.get("dpi") or 150)
+        if dpi not in (96, 150, 300):
+            raise pdfops.OpError("DPI 仅支持 96 / 150 / 300")
+        name = f"{prefix}.pptx"
+        _require_writable(d)
+        idx = pdfops.parse_pages(params.get("pages"), total)
+        selected = idx if idx is not None else list(range(total))
+        import pypdfium2 as pdfium
+
+        imgs = []
+        doc = pdfium.PdfDocument(str(p))
+        try:
+            for n, i in enumerate(selected):
+                ctx.check()
+                img = doc[i].render(scale=dpi / 72.0).to_pil()
+                img_path = ctx.temp_root / f"{prefix}-slide-{n + 1:03d}.png"
+                img.save(img_path)
+                imgs.append(img_path)
+                ctx.progress(0.8 * (n + 1) / len(selected), f"已渲染 {n + 1}/{len(selected)} 页")
+        finally:
+            doc.close()
+        ctx.check()
+        tmp_out = ctx.temp_root / name
+        export.pdf_to_pptx(imgs, tmp_out)
+        for img_path in imgs:
+            img_path.unlink(missing_ok=True)
+        ctx.progress(0.9, "组装 PPT")
+        entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
+        ctx.output(entry_out)
+        return {"files": [entry_out]}
+    if target in ("xlsx", "csv"):
+        name = f"{prefix}.{target}"
+        _require_writable(d)
+        idx = pdfops.parse_pages(params.get("pages"), total)
+        selected = idx if idx is not None else list(range(total))
+        ctx.progress(0.05, "检测表格")
+        data = _extract_tables_chunked(p, selected, ctx)
+        if not sum(len(d["tables"]) for d in data):
+            raise pdfops.OpError("所选页面未检测到表格，请调整页码范围。")
+        tmp_out = ctx.temp_root / name
+        (tables.export_xlsx if target == "xlsx" else tables.export_csv)(data, tmp_out)
+        ctx.progress(0.95, "生成文件")
+        entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
+        ctx.output(entry_out)
+        return {"files": [entry_out]}
+    raise pdfops.OpError("目标格式仅支持 PNG、JPEG、TXT、Markdown、Word、Excel、CSV 或 PPT")
 
 
 # ============================================================ 图片 → PDF
@@ -502,9 +592,8 @@ def run_images_pdf(params: dict, ctx) -> dict:
     name = _safe_name(str(params.get("name") or "图片合集.pdf"))
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
-    source_mode = params.get("dir") == SOURCE_DIR_OPT
     d = _resolve_dir(params.get("dir"), sources=[first])
-    _require_writable(d) if source_mode else _check_run_target(d, [name])
+    _require_writable(d)
     paths = []
     for fid in ids:
         p, entry = _entry_path(fid)
@@ -513,8 +602,7 @@ def run_images_pdf(params: dict, ctx) -> dict:
     tmp_out = ctx.temp_root / name
     topdf.images_to_pdf(paths, tmp_out)
     ctx.check()
-    entry_out = (_deliver_numbered(tmp_out, d, name, ctx=ctx) if source_mode
-                 else _deliver(tmp_out, d / name, display=name, ctx=ctx))
+    entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
     ctx.output(entry_out)
     store.set_pages(entry_out["id"], len(ids))
     return {"file": dict(entry_out, pages=len(ids))}
@@ -566,7 +654,7 @@ def run_ocr(params: dict, ctx) -> dict:
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
     d = _resolve_dir(params.get("dir"))
-    _check_run_target(d, [name])
+    _require_writable(d)
     dpi = int(params.get("dpi") or 200)
 
     explicit = pdfops.parse_pages(params.get("pages"), total)
@@ -589,7 +677,7 @@ def run_ocr(params: dict, ctx) -> dict:
                             should_cancel=lambda: ctx._task["cancel"].is_set(),
                             progress=progress, tier=params.get("tier"))
     ctx.check()
-    entry_out = _deliver(tmp_out, d / name, display=name, ctx=ctx)
+    entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
     ctx.output(entry_out)
     store.set_pages(entry_out["id"], total)
     return {"file": dict(entry_out, pages=total), **result}
@@ -692,6 +780,101 @@ def run_ai_pack_install(params: dict, ctx) -> dict:
             "exe": result.get("exe"), "note": "插件已安装到湛卢数据目录；删除该目录即完全卸载。"}
 
 
+# ============================================================ OFD 预览与转 PDF
+
+def _require_ofd(entry: dict) -> None:
+    if entry["kind"] != "ofd":
+        raise pdfops.OpError(f"仅支持 OFD 文件：{entry['name']}")
+
+
+def _ofd_cached_pdf(p: Path, ctx=None, progress=None, should_cancel=None) -> tuple[Path, str]:
+    """OFD→PDF 版式级转换，按内容 sha 缓存。返回 (pdf 路径, note)。
+    版式转换失败时回落文本重建（note 标注），全部失败才报错。"""
+    import hashlib
+
+    digest = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    cache = config.ensure_dirs() or config.CACHE_OFD_DIR
+    out = cache / f"{digest.hexdigest()}.pdf"
+    if out.exists() and out.stat().st_size > 0:
+        return out, "缓存命中"
+
+    tmp = (ctx.temp_root if ctx is not None else config.TEMP_DIR) / f"ofd-{digest.hexdigest()[:12]}.pdf"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    note = ""
+    try:
+        result = ofd.to_pdf(p, tmp, progress=progress, should_cancel=should_cancel)
+        note = str(result.get("note") or "")
+    except Cancelled:
+        raise
+    except Exception as exc:
+        if ctx is not None:
+            ctx.progress(0.5, "版式转换受限，回退文字重建")
+        pages = ofd.text(p)
+        if not any(pages):
+            raise pdfops.OpError("该 OFD 未解析到文本内容，无法转换为 PDF。") from exc
+        ofd.OfdDoc(p).to_pdf_text_rebuild(tmp)
+        note = "文字重建版（该文件版式转换受限，仅保留文字）"
+    os.replace(tmp, out)  # 缓存原子落位
+    return out, note
+
+
+def preview_ofd_convert(params: dict) -> dict:
+    p, entry = _entry_path(params.get("id"))
+    _require_ofd(entry)
+    total = ofd.info(p).get("pages") or 0
+    name = _safe_name(str(params.get("name") or Path(entry["name"]).stem + "-转换"))
+    if not name.lower().endswith(".pdf"):
+        name += ".pdf"
+    return _preview_result(params.get("dir"),
+                           [{"name": name, "pages": total, "note": "版式级转换 · 文字/矢量/图片按原坐标"}],
+                           f"1 个 PDF · {total} 页", sources=[entry])
+
+
+def run_ofd_convert(params: dict, ctx) -> dict:
+    p, entry = _entry_path(params.get("id"))
+    _require_ofd(entry)
+    name = _safe_name(str(params.get("name") or Path(entry["name"]).stem + "-转换"))
+    if not name.lower().endswith(".pdf"):
+        name += ".pdf"
+    d = _resolve_dir(params.get("dir"), sources=[entry])
+    _require_writable(d)
+    ctx.progress(0.05, "解析 OFD")
+
+    def prog(value, detail=""):
+        ctx.progress(0.1 + 0.85 * value, detail)
+
+    pdf_path, note = _ofd_cached_pdf(p, ctx=ctx, progress=prog,
+                                     should_cancel=lambda: ctx._task["cancel"].is_set())
+    ctx.check()
+    entry_out = _deliver_numbered(pdf_path, d, name, ctx=ctx)
+    ctx.output(entry_out)
+    pages = int(pdfops.info(pdf_path)["pages"])
+    store.set_pages(entry_out["id"], pages)
+    return {"files": [dict(entry_out, pages=pages, note=note)], "note": note}
+
+
+def run_ofd_preview(params: dict, ctx) -> dict:
+    """打开 OFD 时自动触发：转换到预览缓存并登记内部文件（recent=False，不进最近文件）。"""
+    p, entry = _entry_path(params.get("id"))
+    _require_ofd(entry)
+
+    def prog(value, detail=""):
+        ctx.progress(0.1 + 0.85 * value, detail)
+
+    pdf_path, note = _ofd_cached_pdf(p, ctx=ctx, progress=prog,
+                                     should_cancel=lambda: ctx._task["cancel"].is_set())
+    ctx.check()
+    pages = int(pdfops.info(pdf_path)["pages"])
+    stem = _safe_name(Path(entry["name"]).stem)
+    cached = store.add_output(pdf_path, name=f"{stem}-预览.pdf",
+                              display=f"{entry['name']} · PDF 预览", recent=False)
+    store.set_pages(cached["id"], pages)
+    return {"file": dict(cached, pages=pages), "note": note, "source": entry["id"]}
+
+
 # ============================================================ 登记
 
 _KINDS = {
@@ -700,6 +883,8 @@ _KINDS = {
     "organize": ("页面整理", preview_organize, run_organize),
     "convert_pdf": ("PDF 转换", preview_convert_pdf, run_convert_pdf),
     "images_pdf": ("图片转 PDF", preview_images_pdf, run_images_pdf),
+    "convert_ofd": ("OFD 转 PDF", preview_ofd_convert, run_ofd_convert),
+    "ofd_preview": ("OFD 预览转换", None, run_ofd_preview),
     "ocr": ("离线 OCR", preview_ocr, run_ocr),
     "ai_analyze": ("AI 阅读", None, run_ai_analyze),
     "ai_pull": ("下载本地模型", None, run_ai_pull),

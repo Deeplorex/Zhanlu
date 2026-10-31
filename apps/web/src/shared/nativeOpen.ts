@@ -16,9 +16,9 @@ export async function pickPdfsNative(kind: "pdf" | "convert" = "pdf"): Promise<{
   }
 }
 
-/** 打开引擎已登记的 PDF：全部开标签、第一个激活（与上传多开行为一致）。 */
+/** 打开引擎已登记的 PDF/OFD：全部开标签、第一个激活（与上传多开行为一致）。 */
 export function openRegistered(openFile: (f: FileEntry, page?: number) => void, files: FileEntry[]): FileEntry[] {
-  const opened = files.filter((f) => f.kind === "pdf");
+  const opened = files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
   opened.forEach((f) => openFile(f));
   if (opened[0]) openFile(opened[0]);
   return opened;

@@ -43,7 +43,7 @@ export default function Home() {
   const pickerInputRef = useRef<HTMLInputElement>(null);
   const homeDropRef = useRef<HTMLElement>(null);
   const pickerDropRef = useRef<HTMLDivElement>(null);
-  const recentPdfs = files.filter((f) => f.kind === "pdf");
+  const recentPdfs = files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
 
   const openPicker = (k: PickerKind) => { setChosen([]); setPicker(k); };
 
@@ -95,9 +95,9 @@ export default function Home() {
 
   useNativeDrop(homeDropRef, (result) => {
     if (result.errors.length) toast(`部分文件未能打开：${result.errors[0]}`, true);
-    const pdfs = result.files.filter((f) => f.kind === "pdf");
-    if (pdfs.length !== result.files.length) toast("阅读只支持 PDF。", true);
-    if (pdfs.length) { openRegistered(openFile, pdfs); void refreshFiles(); }
+    const docs = result.files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
+    if (docs.length !== result.files.length) toast("这里只支持打开 PDF / OFD 文件。", true);
+    if (docs.length) { openRegistered(openFile, docs); void refreshFiles(); }
   });
   useNativeDrop(pickerDropRef, (result) => {
     if (result.errors.length) toast(`部分文件未能打开：${result.errors[0]}`, true);
@@ -116,14 +116,14 @@ export default function Home() {
   };
 
   const openPdfs = async (list: File[]) => {
-    const pdfs = list.filter((f) => /\.pdf$/i.test(f.name));
-    if (!pdfs.length) { toast("请选择 PDF。", true); return; }
+    const docs = list.filter((f) => /\.(pdf|ofd)$/i.test(f.name));
+    if (!docs.length) { toast("请选择 PDF 或 OFD 文件。", true); return; }
     setUploading(true);
     try {
-      const r = await uploadFiles(pdfs);
+      const r = await uploadFiles(docs);
       await refreshFiles();
       // 多选全部打开为标签；第一个文件保持为当前激活（重复文件由上传去重合并为原标签）
-      const opened = r.files.filter((f) => f.kind === "pdf");
+      const opened = r.files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
       opened.forEach((f) => openFile(f));
       if (opened[0]) openFile(opened[0]);
     } catch (e) {
@@ -180,9 +180,9 @@ export default function Home() {
           <h2>打开 PDF</h2>
           <button type="button" className="home-drop" onClick={() => void openPdfsNative()} disabled={uploading}>
             <span className="home-drop-plus" aria-hidden="true">＋</span>
-            <span className="home-drop-text">拖入 PDF 或点击选择文件</span>
+            <span className="home-drop-text">拖入 PDF / OFD 或点击选择文件</span>
           </button>
-          <input ref={openInputRef} type="file" hidden accept=".pdf" multiple
+          <input ref={openInputRef} type="file" hidden accept=".pdf,.ofd" multiple
                  onChange={(e) => { openPdfs(Array.from(e.target.files || [])); e.target.value = ""; }} />
         </section>
 

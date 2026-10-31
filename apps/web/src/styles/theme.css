@@ -925,3 +925,72 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ── 全屏预览 / 放映（v0.2 M2）：fixed 覆盖层，复用 pdf.js 渲染 ── */
+.immersive-root { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; outline: none; }
+.immersive-root.is-read { background: #221e1a; }
+.immersive-root.is-show { background: #14110f; }
+
+.immersive-canvas { flex: 1; overflow: auto; position: relative; display: flex; justify-content: center; padding: 56px 24px 72px; }
+.immersive-single { display: flex; justify-content: center; align-items: flex-start; width: max-content; min-width: 100%; padding-top: 8px; }
+.immersive-stage { flex: 1; display: grid; place-items: center; padding: 40px 36px 72px; min-height: 0; }
+.immersive-root .pdf-page { box-shadow: 0 12px 48px rgba(0, 0, 0, .5); margin-bottom: 0; }
+
+.immersive-top, .immersive-bottom {
+  position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; color: #f4f1eb; transition: opacity .18s ease; z-index: 2;
+}
+.immersive-top { top: 0; justify-content: flex-start; background: linear-gradient(rgba(20, 17, 14, .78), rgba(20, 17, 14, 0)); }
+.immersive-bottom { bottom: 0; justify-content: center; background: linear-gradient(rgba(20, 17, 14, 0), rgba(20, 17, 14, .82) 62%); }
+.immersive-root.chrome-hidden .immersive-top,
+.immersive-root.chrome-hidden .immersive-bottom { opacity: 0; pointer-events: none; }
+
+.immersive-title { font-size: 13px; font-weight: 500; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.immersive-hint { font-size: 12px; opacity: .55; margin-left: auto; }
+.immersive-top .immersive-btn { margin-left: 8px; }
+.immersive-page { font-size: 12.5px; min-width: 96px; text-align: center; opacity: .92; }
+.immersive-sep { width: 1px; height: 20px; background: rgba(244, 241, 235, .26); }
+
+.immersive-btn {
+  height: 30px; min-width: 30px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+  background: rgba(244, 241, 235, .07); color: #f4f1eb; border: 1px solid rgba(244, 241, 235, .24);
+  font-size: 12.5px; font-family: inherit;
+}
+.immersive-btn:hover:not(:disabled) { background: rgba(244, 241, 235, .14); }
+.immersive-btn:disabled { opacity: .38; cursor: default; }
+.immersive-btn:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+.immersive-zoom { min-width: 52px; font-variant-numeric: tabular-nums; }
+
+.immersive-autoplay { display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: .92; }
+.immersive-autoplay select {
+  height: 30px; border-radius: 8px; border: 1px solid rgba(244, 241, 235, .24);
+  background: rgba(244, 241, 235, .07); color: #f4f1eb; padding: 0 6px; font-size: 12.5px; cursor: pointer;
+}
+.immersive-autoplay select:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+.immersive-autoplay select option { color: #2b2622; }
+
+@media (max-width: 840px) {
+  .immersive-hint { display: none; }
+  .immersive-title { max-width: 44vw; }
+  .immersive-page { min-width: 84px; }
+}
+
+/* ── OFD 预览横幅与转换中提示（v0.2 M3） ── */
+.ofd-banner {
+  display: flex; align-items: center; gap: 10px; padding: 7px 24px;
+  background: var(--z-warm); border-bottom: 1px solid var(--z-line); font-size: 12px; color: var(--ink-2);
+}
+.ofd-banner-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ofd-banner-btn {
+  margin-left: auto; height: 26px; padding: 0 12px; border-radius: 6px; cursor: pointer;
+  background: transparent; border: 1px solid var(--z-accent); color: var(--z-accent);
+  font-size: 12px; font-family: inherit;
+}
+.ofd-banner-btn:hover { background: var(--z-accent-soft); }
+.ofd-banner-btn:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+.ofd-preview-note { display: flex; flex-direction: column; gap: 12px; align-items: center; max-width: 320px; }
+.ofd-preview-note p { margin: 0; color: var(--ink-2); font-size: 13px; }
+
+/* 阅读内转换右栏 · 目标格式组（v0.2）：7 项等宽栅格 */
+.fmt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fmt-grid .fmt-pair-btn { padding: 0 4px; }

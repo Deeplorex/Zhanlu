@@ -1,6 +1,6 @@
 [package]
 name = "zhanlu"
-version = "0.1.0"
+version = "0.2.0"
 license = "Apache-2.0"
 description = "湛卢 Zhanlu — 纯本地 PDF/OFD 工具箱"
 edition = "2021"

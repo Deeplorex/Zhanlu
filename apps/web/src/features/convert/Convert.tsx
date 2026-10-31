@@ -9,20 +9,30 @@ import type { FileEntry } from "../../shared/types";
 import DropZone from "../../shared/components/DropZone";
 import SwordProgress, { swordPct } from "../../shared/SwordProgress";
 
-type Target = "png" | "jpg" | "txt" | "md";
+type Target = "png" | "jpg" | "txt" | "md" | "docx" | "xlsx" | "csv" | "pptx";
 
 const FORMAT_CARDS: { id: Target; label: string; sub: string }[] = [
   { id: "png", label: "PNG 图片", sub: "每页一张，适合分享" },
   { id: "jpg", label: "JPG 图片", sub: "体积较小" },
   { id: "txt", label: "可提取文本", sub: "需要 PDF 含文字层" },
   { id: "md", label: "Markdown", sub: "标题与列表按层级转换" },
+  { id: "docx", label: "Word 文档", sub: "文字按页整理 · 基础版" },
+  { id: "xlsx", label: "Excel 表格", sub: "提取检测到的表格" },
+  { id: "csv", label: "CSV 表格", sub: "提取检测到的表格" },
+  { id: "pptx", label: "PPT 演示", sub: "每页一张幻灯片图片" },
 ];
 
 /** 独立转换任务标签（Figma 36）：目标格式三卡、页码范围、输出预览与保存位置同屏。 */
 export default function Convert() {
-  const { taskSeed, taskTabId, setTaskTabTitle, refreshFiles, openFile, toast } = React.useContext(AppCtx);
+  const { taskSeed, taskTabId, setTaskTabTitle, refreshFiles, openFile, toast, engines } = React.useContext(AppCtx);
   const pdfJob = useJob("convert_pdf");
   const imgJob = useJob("images_pdf");
+
+  const engineTargets = (engines?.targets?.pdf || []) as { target: string; available?: boolean; note?: string }[];
+  const targetAvail = (t: Target) => {
+    const row = engineTargets.find((r) => r.target === t);
+    return { available: row ? row.available !== false : true, note: row?.note || "" };
+  };
 
   const [pdfFile, setPdfFile] = useState<FileEntry | null>(null);
   const [target, setTarget] = useState<Target>("png");
@@ -67,7 +77,8 @@ export default function Convert() {
 
   useEffect(() => {
     if (!taskTabId) return;
-    setTaskTabTitle(taskTabId, imageMode ? "转换 · 图片" : target === "md" ? "转换 · Markdown" : `转换 · ${target.toUpperCase()}`);
+    const label = { png: "PNG", jpg: "JPG", txt: "TXT", md: "Markdown", docx: "Word", xlsx: "Excel", csv: "CSV", pptx: "PPT" }[target];
+    setTaskTabTitle(taskTabId, imageMode ? "转换 · 图片" : `转换 · ${label}`);
   }, [taskTabId, imageMode, target, setTaskTabTitle]);
 
   // PDF 转换参数 → 预览
@@ -146,7 +157,13 @@ export default function Convert() {
   const outCount = preview?.outputs?.length || 0;
   const targetLabel = imageMode
     ? `1 个 PDF · ${preview?.outputs?.[0]?.pages ?? images.length} 页`
-    : `${outCount} ${target === "txt" ? "个 TXT 文本" : target === "md" ? "个 Markdown 文件" : `张 ${target.toUpperCase()} 图片`}`;
+    : target === "txt" ? `${outCount} 个 TXT 文本`
+    : target === "md" ? `${outCount} 个 Markdown 文件`
+    : target === "docx" ? `${outCount} 个 Word 文档`
+    : target === "pptx" ? `${outCount} 个 PPT 演示`
+    : target === "xlsx" ? `${outCount} 个 Excel 表格`
+    : target === "csv" ? `${outCount} 个 CSV 表格`
+    : `${outCount} 张 ${target.toUpperCase()} 图片`;
 
   return (
     <div className="task-pad rise">
@@ -205,18 +222,24 @@ export default function Convert() {
 
               <span className="convert-label">目标格式</span>
               <div className="fmt-cards" role="radiogroup" aria-label="目标格式">
-                {FORMAT_CARDS.map((f) => (
-                  <button type="button" key={f.id} role="radio" aria-checked={target === f.id}
-                          className={"fmt-card" + (target === f.id ? " on" : "")} onClick={() => setTarget(f.id)}>
-                    <strong>{f.label}</strong><small>{f.sub}</small>
-                  </button>
-                ))}
+                {FORMAT_CARDS.map((f) => {
+                  const { available, note } = targetAvail(f.id);
+                  return (
+                    <button type="button" key={f.id} role="radio" aria-checked={target === f.id}
+                            disabled={!available}
+                            title={available ? undefined : note || "当前环境不可用"}
+                            className={"fmt-card" + (target === f.id ? " on" : "")}
+                            onClick={() => setTarget(f.id)}>
+                      <strong>{f.label}</strong><small>{available ? f.sub : (note || "当前环境不可用")}</small>
+                    </button>
+                  );
+                })}
               </div>
 
               <span className="convert-label">页码范围</span>
               <input className="input" value={pages} aria-label="页码范围" onChange={(e) => setPages(e.target.value)}
                      placeholder={`全部页面 · 共 ${pdfFile.pages || "?"} 页；或输入 2-5,8`} />
-              {(target === "png" || target === "jpg") && (
+              {(target === "png" || target === "jpg" || target === "pptx") && (
                 <select className="input" style={{ marginTop: 8 }} value={dpi} aria-label="清晰度"
                         onChange={(e) => setDpi(Number(e.target.value))}>
                   <option value={96}>清晰度 · 标准（96 DPI）</option>

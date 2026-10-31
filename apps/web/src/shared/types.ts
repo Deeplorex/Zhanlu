@@ -153,7 +153,7 @@ export interface ReaderView {
   mode?: DocMode;
   aiOpen?: boolean;
   /** 转换上下文：进入转换模式时恢复上次子类型；图片 DPI 偏好单独记忆 */
-  convertTarget?: "png" | "jpg" | "txt" | "md";
+  convertTarget?: "png" | "jpg" | "txt" | "md" | "docx" | "xlsx" | "csv" | "pptx";
   convertDpi?: number;
   /** 无书签文档的 AI 识别目录（重开文档恢复；重新识别覆盖） */
   aiOutline?: OutlineNode[];

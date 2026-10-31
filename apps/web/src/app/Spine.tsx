@@ -99,7 +99,7 @@ export default function Spine({ route }: { route: string }) {
     return () => { mq.removeEventListener("change", on); removeEventListener("resize", on); };
   }, []);
 
-  const onPdfTab = route === "reader" && current?.kind === "pdf";
+  const onPdfTab = route === "reader" && (current?.kind === "pdf" || current?.kind === "ofd");
   const workTabs: WorkTab[] = [
     ...tabs.map((file): WorkTab => ({
       key: `p-${file.id}`, kind: "pdf", id: file.id, name: file.name, file,
@@ -328,12 +328,12 @@ export default function Spine({ route }: { route: string }) {
   }, []);
 
   const openPdfFromBar = async (list: FileList | null) => {
-    const pdfs = Array.from(list || []).filter((f) => /\.pdf$/i.test(f.name));
+    const pdfs = Array.from(list || []).filter((f) => /\.(pdf|ofd)$/i.test(f.name));
     if (!pdfs.length) return;
     try {
       const r = await uploadFiles(pdfs);
       // 多选全部打开为标签；第一个文件保持为当前激活（重复文件由上传去重合并为原标签）
-      const opened = r.files.filter((f) => f.kind === "pdf");
+      const opened = r.files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
       opened.forEach((f) => openFile(f));
       if (opened[0]) openFile(opened[0]);
     } catch (e) { toast(`打开失败：${(e as Error).message}`, true); }
@@ -354,15 +354,16 @@ export default function Spine({ route }: { route: string }) {
   // 可被一键清理的终态任务数（运行中/取消中除外）
   const clearableCount = tasks.length - running;
 
-  const hasDoc = !!current && current.kind === "pdf";
-  // 分组命令（Figma 56/58）：当前 PDF / 应用命令 / 最近文件
+  const isOfd = current?.kind === "ofd";
+  const hasDoc = !!current && (current.kind === "pdf" || isOfd);
+  // 分组命令（Figma 56/58）：当前 PDF / 应用命令 / 最近文件；OFD 无页面整理/拆分/OCR
   const docCmds: FindCmd[] = hasDoc ? [
-    { key: "find-text", title: "查找当前 PDF 中的文字", hint: "打开左栏搜索并定位文字",
+    { key: "find-text", title: `查找当前${isOfd ? " OFD" : " PDF"}中的文字`, hint: "打开左栏搜索并定位文字",
       run: () => { setShowFind(false); setDocMode("reader"); setDocStatus(null);
         setTimeout(() => window.dispatchEvent(new CustomEvent("zhanlu:focus-find")), 30); } },
-    { key: "convert-doc", title: "转换当前 PDF", hint: "保留原文，在右侧核对输出",
+    { key: "convert-doc", title: isOfd ? "当前 OFD 另存为 PDF" : "转换当前 PDF", hint: "保留原文，在右侧核对输出",
       run: () => { setShowFind(false); setDocMode("convert"); setDocStatus(null); } },
-    { key: "pages", title: "整理当前 PDF 页面", hint: "整页网格多选、移动、旋转和删除",
+    ...(!isOfd ? [{ key: "pages", title: "整理当前 PDF 页面", hint: "整页网格多选、移动、旋转和删除",
       run: () => { setShowFind(false); setDocMode("pages"); setDocStatus(null); } },
     { key: "ai", title: "AI 阅读当前 PDF", hint: "右侧栏提问，回答来源可返回原页",
       run: () => { setShowFind(false); openAiForFile(current!); } },
@@ -370,9 +371,13 @@ export default function Spine({ route }: { route: string }) {
       run: () => { setShowFind(false); setDocMode("reader"); setDocStatus(null);
         setTimeout(() => window.dispatchEvent(new CustomEvent("zhanlu:ocr-current")), 30); } },
     { key: "split-doc", title: "拆分当前 PDF", hint: "在任务标签中选择规则并另存",
-      run: () => { setShowFind(false); startTask("split", [current!]); } },
-    { key: "convert-task", title: "创建转换任务", hint: "独立任务标签核对后另存",
-      run: () => { setShowFind(false); startTask("convert", [current!]); } },
+      run: () => { setShowFind(false); startTask("split", [current!]); } }] : []),
+    { key: "fullscreen", title: `全屏预览当前${isOfd ? "文档" : " PDF"}`, hint: "沉浸阅读 · Esc 退出",
+      run: () => { setShowFind(false); setTimeout(() => window.dispatchEvent(new CustomEvent("zhanlu:fullscreen-read")), 30); } },
+    { key: "present", title: `放映当前${isOfd ? "文档" : " PDF"}`, hint: "整页居中逐页演示 · ← → 翻页",
+      run: () => { setShowFind(false); setTimeout(() => window.dispatchEvent(new CustomEvent("zhanlu:present")), 30); } },
+    ...(!isOfd ? [{ key: "convert-task", title: "创建转换任务", hint: "独立任务标签核对后另存",
+      run: () => { setShowFind(false); startTask("convert", [current!]); } }] : []),
   ] : [];
   const appCmds: FindCmd[] = [
     { key: "merge", title: "合并 PDF", hint: "多份文件合成一份 · 独立任务", run: () => { setShowFind(false); location.hash = "#/merge"; } },
@@ -410,7 +415,8 @@ export default function Spine({ route }: { route: string }) {
   }, [showFind, findIdxSafe]);
 
   const setMode = (m: DocMode) => {
-    if (!current || current.kind !== "pdf") return;
+    if (!current || (current.kind !== "pdf" && current.kind !== "ofd")) return;
+    if (current.kind === "ofd" && m === "pages") return; // OFD 无整页整理
     setDocMode(m);
     setDocStatus(null);
   };
@@ -514,7 +520,7 @@ export default function Spine({ route }: { route: string }) {
                 onClick={() => void openViaNative()}>
           {narrow ? (tabCount >= 2 ? "＋" : "＋ 打开") : "＋ 打开 PDF"}
         </button>
-        <input ref={openInputRef} type="file" hidden accept=".pdf" multiple
+        <input ref={openInputRef} type="file" hidden accept=".pdf,.ofd" multiple
                onChange={(e) => { openPdfFromBar(e.target.files); e.target.value = ""; }} />
         <div className="spine-actions" role="group" aria-label="全局操作">
           <button type="button" className="gact gact-find" title="查找功能（Ctrl+K）" onClick={openFind}>
@@ -532,7 +538,7 @@ export default function Spine({ route }: { route: string }) {
       </div>
       {onPdfTab ? (
         <nav className="doc-modes" aria-label="文档模式">
-          {MODES.map((m) => (
+          {MODES.filter((m) => current?.kind !== "ofd" || m.id !== "pages").map((m) => (
             <button key={m.id} type="button" title={m.label} className={docMode === m.id ? "on" : ""}
                     aria-current={docMode === m.id ? "page" : undefined} onClick={() => setMode(m.id)}>
               <Icon name={m.icon} /><span>{m.label}</span>

@@ -10,7 +10,10 @@ import { printPdf } from "./printPdf";
 import type { AiConfig, FileInfo, FileEntry, OutlineNode } from "../../shared/types";
 import type { ReaderConvertTarget } from "./ReaderConvertPanel";
 import ReaderConvertPanel from "./ReaderConvertPanel";
+import ReaderOfdPanel from "./ReaderOfdPanel";
 import PagesGrid from "../pages/PagesGrid";
+import { clamp, ContinuousPages, PageView } from "./PageViews";
+import ImmersiveLayer, { type ImmersiveMode } from "./ImmersiveLayer";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -18,8 +21,6 @@ type PDFDoc = pdfjs.PDFDocumentProxy;
 type SideTab = "thumbs" | "bookmarks" | "search";
 
 interface SearchHit { page: number; snippet: string; spans: { itemIdx: number; start: number; len: number }[] }
-
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 function useNarrow(): boolean {
   const [narrow, setNarrow] = useState(() => window.innerWidth <= 840);
@@ -29,178 +30,6 @@ function useNarrow(): boolean {
     return () => removeEventListener("resize", onResize);
   }, []);
   return narrow;
-}
-
-// ---------------- 单页渲染（画布 + 文字层 + 高亮） ----------------
-
-function PageView({ doc, number, scale, viewRotate, needText, highlight, onSelection }: {
-  doc: PDFDoc; number: number; scale: number; viewRotate: number;
-  needText: boolean; highlight: { query: string; matches: Map<number, { itemIdx: number; start: number; len: number }[]> } | null;
-  onSelection?: (text: string, page: number) => void;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const textRef = useRef<HTMLDivElement>(null);
-  const hlRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-
-  const rotation = (viewRotate % 360 + 360) % 360;
-
-  // 画布渲染
-  useEffect(() => {
-    let cancelled = false;
-    let render: pdfjs.RenderTask | null = null;
-    doc.getPage(number).then((page) => {
-      if (cancelled) return;
-      const viewport = page.getViewport({ scale, rotation: (page.rotate + rotation) % 360 });
-      setSize({ w: viewport.width, h: viewport.height });
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
-      const ctx = canvas.getContext("2d")!;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      render = page.render({ canvas, canvasContext: ctx, viewport } as never);
-      render.promise.catch(() => {});
-    }).catch(() => {});
-    return () => { cancelled = true; render?.cancel(); };
-  }, [doc, number, scale, rotation]);
-
-  // 文字层（可选中/可复制）+ 高亮带
-  useEffect(() => {
-    if (!needText || !size) return;
-    let cancelled = false;
-    const pageP = doc.getPage(number);
-    pageP.then(async (page) => {
-      if (cancelled || !textRef.current) return;
-      try {
-        const viewport = page.getViewport({ scale, rotation: (page.rotate + rotation) % 360 });
-        const content = await page.getTextContent();
-        if (cancelled || !textRef.current || !hlRef.current) return;
-        const container = textRef.current;
-        container.innerHTML = "";
-        container.style.width = `${viewport.width}px`;
-        container.style.height = `${viewport.height}px`;
-        // 逐项 span，保持可选中
-        for (const item of content.items as any[]) {
-          if (!("str" in item) || !item.str) continue;
-          const tx = pdfjs.Util.transform(viewport.transform, item.transform);
-          const fontHeight = Math.hypot(tx[2], tx[3]) || 10;
-          const width = (item.width || 0) * viewport.scale;
-          const span = document.createElement("span");
-          span.textContent = item.str;
-          span.style.left = `${tx[4]}px`;
-          span.style.top = `${tx[5] - fontHeight}px`;
-          span.style.fontSize = `${fontHeight}px`;
-          if (width > 0) span.style.width = `${width}px`;
-          container.appendChild(span);
-        }
-        // 高亮带（对齐文字行宽，暖黄底）
-        const hl = hlRef.current;
-        hl.innerHTML = "";
-        const pageMatches = highlight?.matches.get(number);
-        if (pageMatches && highlight?.query) {
-          for (const m of pageMatches) {
-            const item = (content.items as any[])[m.itemIdx];
-            if (!item || !("str" in item)) continue;
-            const tx = pdfjs.Util.transform(viewport.transform, item.transform);
-            const fontHeight = Math.hypot(tx[2], tx[3]) || 10;
-            const width = (item.width || 0) * viewport.scale;
-            const len = Math.max(1, item.str.length);
-            const left = tx[4] + (m.start / len) * width;
-            const w = (m.len / len) * width;
-            const box = document.createElement("i");
-            box.style.left = `${left}px`;
-            box.style.top = `${tx[5] - fontHeight}px`;
-            box.style.width = `${w}px`;
-            box.style.height = `${fontHeight}px`;
-            hl.appendChild(box);
-          }
-        }
-      } catch { /* 单页文字层失败不影响阅读 */ }
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [doc, number, scale, rotation, needText, size, highlight]);
-
-  const handleUp = () => {
-    const sel = window.getSelection();
-    const text = sel?.toString().trim() || "";
-    if (text && onSelection) onSelection(text, number);
-  };
-
-  return (
-    <div className="pdf-page" ref={wrapRef} data-page={number}
-         style={size ? { width: size.w, height: size.h } : { minHeight: 400 }}>
-      <canvas ref={canvasRef} aria-label={`第 ${number} 页`} />
-      <div className="hl-layer" ref={hlRef} aria-hidden="true" />
-      <div className="text-layer" ref={textRef} onMouseUp={handleUp} />
-    </div>
-  );
-}
-
-// ---------------- 连续模式（窗口化渲染，R01 大文档不冻结） ----------------
-
-function ContinuousPages({ doc, scale, viewRotate, pageNum, jumpToken, scrollRef, onCurrentPage, needText, highlight, onSelection }: {
-  doc: PDFDoc; scale: number; viewRotate: number; pageNum: number; jumpToken: number;
-  scrollRef: React.RefObject<HTMLElement | null>; onCurrentPage: (p: number) => void;
-  needText: boolean;
-  highlight: { query: string; matches: Map<number, { itemIdx: number; start: number; len: number }[]> } | null;
-  onSelection?: (text: string, page: number) => void;
-}) {
-  const [slot, setSlot] = useState<{ w: number; h: number } | null>(null);
-  const [visible, setVisible] = useState(pageNum);
-
-  useEffect(() => {
-    doc.getPage(1).then((page) => {
-      const v = page.getViewport({ scale, rotation: (page.rotate + viewRotate) % 360 });
-      setSlot({ w: v.width, h: v.height + 26 });
-    }).catch(() => {});
-  }, [doc, scale, viewRotate]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el && slot) el.scrollTop = (pageNum - 1) * slot.h;
-    setVisible(pageNum);
-  }, [jumpToken, slot, doc]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      if (!slot) return;
-      const p = clamp(Math.floor((el.scrollTop + 80) / slot.h) + 1, 1, doc.numPages);
-      setVisible(p);
-      if (p !== pageNum) onCurrentPage(p);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll, { passive: true } as never);
-  }, [doc, slot, pageNum, onCurrentPage, scrollRef]);
-
-  // 只挂载当前页附近的窗口；远距离滚动也不扩展到整份文档。
-  const start = clamp(visible - 2, 1, doc.numPages);
-  const end = clamp(visible + 3, 1, doc.numPages);
-  const slotH = slot?.h || 900;
-
-  return (
-    <div className="continuous-track" style={{ height: doc.numPages * slotH, minWidth: slot ? slot.w + 48 : undefined }}>
-      {slot && Array.from({ length: end - start + 1 }, (_, k) => {
-        const number = start + k;
-        const active = highlight?.matches.has(number);
-        return (
-          <div key={`${number}-${scale}-${viewRotate}`} className="continuous-slot"
-               style={{ top: (number - 1) * slotH, minHeight: slotH - 26 }} data-page={number}>
-            <PageView doc={doc} number={number} scale={scale} viewRotate={viewRotate}
-                      needText={needText && Math.abs(number - visible) <= 1}
-                      highlight={active ? highlight : null} onSelection={onSelection} />
-            <span className="page-tag">第 {number} / {doc.numPages} 页</span>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 // ---------------- 目录 ----------------
@@ -338,7 +167,7 @@ export default function Reader() {
   const [selPopup, setSelPopup] = useState<{ text: string; page: number; x: number; y: number } | null>(null);
   const [convertTarget, setConvertTargetState] = useState<ReaderConvertTarget>(() => {
     const saved = file ? readerView[file.id]?.convertTarget : undefined;
-    return saved === "jpg" || saved === "txt" || saved === "md" || saved === "png" ? saved : "png";
+    return saved && ["png", "jpg", "txt", "md", "docx", "xlsx", "csv", "pptx"].includes(saved) ? saved : "png";
   });
   const setConvertTarget = useCallback((t: ReaderConvertTarget) => {
     setConvertTargetState(t);
@@ -363,6 +192,11 @@ export default function Reader() {
   const [currentPageTextless, setCurrentPageTextless] = useState(false);
   const [restored, setRestored] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [immersive, setImmersive] = useState<ImmersiveMode | null>(null);
+  // OFD：打开即自动转换 PDF 预览（缓存命中秒开），阅读/放映/搜索都作用在预览 PDF 上
+  const [ofdPreview, setOfdPreview] = useState<{ file: FileEntry; note: string } | null>(null);
+  const [ofdError, setOfdError] = useState<string | null>(null);
+  const [ofdTask, setOfdTask] = useState<{ id: string; status: string; progress: number; progressKnown?: boolean } | null>(null);
   const printAbort = useRef<AbortController | null>(null);
   useEffect(() => () => printAbort.current?.abort(), [file?.id]);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -412,18 +246,66 @@ export default function Reader() {
     }
   }, [readerJump, file?.id, consumeReaderJump, setDocStatus]);
 
+  // OFD：打开即自动生成 PDF 预览（每文件一次；Reader 按文件 id 重挂载）
+  useEffect(() => {
+    if (!file || file.kind !== "ofd") return;
+    let alive = true;
+    setOfdPreview(null); setOfdError(null); setOfdTask({ id: "", status: "submitting", progress: 0 });
+    (async () => {
+      try {
+        const started = await jobsRun("ofd_preview", { id: file.id });
+        if (!alive) return;
+        setOfdTask({ id: started.id, status: "running", progress: 0 });
+        const done = await waitTask(started.id, { onTick: (t) => {
+          if (alive) setOfdTask({ id: t.id, status: t.status, progress: t.progress, progressKnown: t.progressKnown });
+        } });
+        if (!alive) return;
+        if (done.status === "done") {
+          const f = done.result?.file as FileEntry | undefined;
+          if (f) setOfdPreview({ file: f, note: String((done.result as { note?: string })?.note || "") });
+          else setOfdError("预览转换未返回文件。");
+          setOfdTask(null);
+        } else if (done.status === "cancelled") {
+          setOfdTask(null);
+          setOfdError("已取消预览转换，可重新打开该文件重试。");
+        } else {
+          setOfdTask(null);
+          setOfdError(`预览转换失败：${done.error || done.status}`);
+        }
+      } catch (e) {
+        if (!alive) return;
+        setOfdTask(null);
+        setOfdError(`预览转换失败：${(e as Error).message}`);
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file?.id]);
+
+  // 阅读渲染目标：PDF 是文件本身；OFD 是转换后的预览 PDF
+  const viewFileId = file?.kind === "ofd" ? (ofdPreview?.file.id ?? null) : (file?.id ?? null);
+  const isOfd = file?.kind === "ofd";
+  // 侧栏（缩略图等）作用于预览 PDF，但展示原文件名（仅在 file 非空分支使用）
+  const sideFile = file && isOfd && ofdPreview ? { ...file, id: ofdPreview.file.id, pages: ofdPreview.file.pages } : file!;
+
   // 载入文档
   useEffect(() => {
     setDoc(null); setDocErr(null); setInfo(null); setHits(null); setActiveHit(null);
     setPasswordPrompt(null); setPasswordProtected(false); setPasswordValue(""); setSelPopup(null); setOcrTask(null); setOcrDone(null);
     pwUpdateRef.current = null; pwCancelled.current = false;
     if (!file) return;
-    if (file.kind !== "pdf") { setDocErr("阅读器只支持 PDF。"); return; }
-    get<FileInfo>(`/api/files/${file.id}/info?probe=text`).then((r) => {
-      setInfo(r);
-    }).catch(() => {});
+    if (isOfd) {
+      get<FileInfo>(`/api/files/${file.id}/info`).then((r) => setInfo(r)).catch(() => {});
+      if (!viewFileId) return; // 预览转换进行中
+    } else if (file.kind !== "pdf") {
+      setDocErr("阅读器只支持 PDF 与 OFD。"); return;
+    } else {
+      get<FileInfo>(`/api/files/${file.id}/info?probe=text`).then((r) => {
+        setInfo(r);
+      }).catch(() => {});
+    }
     const task = pdfjs.getDocument({
-      url: rawUrl(file.id),
+      url: rawUrl(viewFileId || file.id),
       cMapUrl: new URL("cmaps/", document.baseURI).href, // 中文 CID 字体必需
       cMapPacked: true,
     } as never);
@@ -446,11 +328,18 @@ export default function Reader() {
       setDocErr(String((e as Error)?.message || e));
     });
     return () => { cancelled = true; pwCancelled.current = true; task.destroy?.(); };
-  }, [file?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file?.id, viewFileId]);
 
   const jump = useCallback((p: number) => {
     if (doc && p >= 1 && p <= doc.numPages) { setPageNum(p); setJumpToken((x) => x + 1); }
   }, [doc]);
+
+  // 全屏预览/放映退出：回到 Reader 并定位到离开时的页
+  const exitImmersive = useCallback((page: number) => {
+    setImmersive(null);
+    jump(page);
+  }, [jump]);
 
   // 搜索：全文 + 每项命中范围（供高亮）
   const doSearch = useCallback(async (qRaw: string) => {
@@ -676,12 +565,12 @@ export default function Reader() {
   };
 
   const openOther = async (list: File[]) => {
-    const pdfs = list.filter((f) => /\.pdf$/i.test(f.name));
+    const pdfs = list.filter((f) => /\.(pdf|ofd)$/i.test(f.name));
     if (!pdfs.length) return;
     try {
       const r = await uploadFiles(pdfs);
       // 多选全部打开为标签；第一个文件保持为当前激活（重复文件由上传去重合并为原标签）
-      const opened = r.files.filter((f) => f.kind === "pdf");
+      const opened = r.files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
       opened.forEach((f) => openFile(f));
       if (opened[0]) openFile(opened[0]);
     } catch (e) { toast(`打开失败：${(e as Error).message}`, true); }
@@ -713,16 +602,20 @@ export default function Reader() {
     return () => removeEventListener("keydown", onKey);
   }, [setDocMode]);
 
-  // 全局命令：聚焦查找 / 就地 OCR / 来源跳转后聚焦原文画布
+  // 全局命令：聚焦查找 / 就地 OCR / 来源跳转后聚焦原文画布 / 全屏预览与放映
   useEffect(() => {
     const onFocusFind = () => { setDocMode("reader"); setTab("search"); setSideOpen(true);
       setTimeout(() => searchInputRef.current?.focus(), 30); };
     const onOcr = () => { setDocMode("reader"); void runOcr(); };
     const onFocusCanvas = () => { scrollRef.current?.focus(); };
+    const onImmersiveRead = () => setImmersive("read");
+    const onPresent = () => setImmersive("slideshow");
     addEventListener("zhanlu:focus-find", onFocusFind);
     addEventListener("zhanlu:ocr-current", onOcr);
     addEventListener("zhanlu:focus-canvas", onFocusCanvas);
-    return () => { removeEventListener("zhanlu:focus-find", onFocusFind); removeEventListener("zhanlu:ocr-current", onOcr); removeEventListener("zhanlu:focus-canvas", onFocusCanvas); };
+    addEventListener("zhanlu:fullscreen-read", onImmersiveRead);
+    addEventListener("zhanlu:present", onPresent);
+    return () => { removeEventListener("zhanlu:focus-find", onFocusFind); removeEventListener("zhanlu:ocr-current", onOcr); removeEventListener("zhanlu:focus-canvas", onFocusCanvas); removeEventListener("zhanlu:fullscreen-read", onImmersiveRead); removeEventListener("zhanlu:present", onPresent); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file?.id]);
 
@@ -796,7 +689,7 @@ export default function Reader() {
         <div className="reader-empty-drop">
           <button type="button" className="btn primary" onClick={() => (location.hash = "#/home")}>到首页打开 PDF</button>
           <label className="btn" onClick={(e) => { e.preventDefault(); void openOtherNative(); }}>直接选择文件
-            <input ref={openOtherInputRef} type="file" hidden accept=".pdf" multiple
+            <input ref={openOtherInputRef} type="file" hidden accept=".pdf,.ofd" multiple
                    onClick={(e) => e.stopPropagation()}
                    onChange={(e) => { openOther(Array.from(e.target.files || [])); e.target.value = ""; }} />
           </label>
@@ -808,7 +701,8 @@ export default function Reader() {
   const readerBodyMode = docMode;
 
   // 上下文工具组（2026-10-26 基线）：整组按窗口宽度居中，槽位固定，竖线分隔打印
-  const tools: React.ReactNode[] = readerBodyMode === "pages" ? [
+  // OFD：无页面整理/转换 PDF 工具；阅读组不含 AI 与 OCR（引擎按 PDF 处理）
+  const tools: React.ReactNode[] = !isOfd && readerBodyMode === "pages" ? [
     <button key="organize" type="button" className="tact on" style={{ width: 144 }} aria-current="page"><Icon name="pages" />整理当前 PDF</button>,
     <button key="split" type="button" className="tact" style={{ width: 160 }} title="在任务标签中选择规则并另存"
             onClick={() => startTask("split", [file!])}><Icon name="split" />拆分成多个 PDF</button>,
@@ -817,7 +711,7 @@ export default function Reader() {
     <span key="sep" className="tsep" aria-hidden="true" />,
     <button key="print" type="button" className="tact" style={{ width: 88 }} onClick={requestPrint}
             disabled={!doc || printing} aria-busy={printing}><Icon name="print" />打印</button>,
-  ] : readerBodyMode === "convert" ? [
+  ] : !isOfd && readerBodyMode === "convert" ? [
     <button key="img" type="button" className={"tact" + (convertTarget === "png" || convertTarget === "jpg" ? " on" : "")} style={{ width: 144 }}
             aria-pressed={convertTarget === "png" || convertTarget === "jpg"}
             onClick={() => setConvertTarget(convertTarget === "jpg" ? "jpg" : "png")}><Icon name="images" />转换为图片</button>,
@@ -834,8 +728,15 @@ export default function Reader() {
             aria-pressed={tab === "bookmarks" && sideOpen} onClick={() => openPanelTab("bookmarks")}><Icon name="read" />目录</button>,
     <button key="search" type="button" className={"tact" + (tab === "search" && sideOpen ? " on" : "")} style={{ width: 112 }}
             aria-pressed={tab === "search" && sideOpen} onClick={() => openPanelTab("search")}><Icon name="search" />查找文字</button>,
-    <button key="ai" type="button" className={"tact" + (aiOpen ? " on" : "")} style={{ width: 112 }}
-            aria-pressed={aiOpen} title="打开当前 PDF 的 AI 对话" onClick={toggleAi}><Icon name="ai" />AI 阅读</button>,
+    ...(!isOfd ? [
+      <button key="ai" type="button" className={"tact" + (aiOpen ? " on" : "")} style={{ width: 112 }}
+              aria-pressed={aiOpen} title="打开当前 PDF 的 AI 对话" onClick={toggleAi}><Icon name="ai" />AI 阅读</button>,
+      <span key="sep1" className="tsep" aria-hidden="true" />,
+    ] : []),
+    <button key="immersive" type="button" className="tact" style={{ width: 112 }} title="全屏预览：隐藏界面沉浸阅读（Esc 退出）"
+            onClick={() => setImmersive("read")} disabled={!doc}><Icon name="expand" />全屏预览</button>,
+    <button key="present" type="button" className="tact" style={{ width: 88 }} title="放映：整页居中逐页演示，← → 翻页"
+            onClick={() => setImmersive("slideshow")} disabled={!doc}><Icon name="play" />放映</button>,
     <span key="sep" className="tsep" aria-hidden="true" />,
     <button key="print" type="button" className="tact" style={{ width: 88 }} onClick={requestPrint}
             disabled={!doc || printing} aria-busy={printing}><Icon name="print" />打印</button>,
@@ -854,6 +755,22 @@ export default function Reader() {
         </div>
       </div>
 
+      {/* OFD 预览横幅（v0.2 M3）：说明预览性质并提供另存入口 */}
+      {isOfd && (
+        <div className="ofd-banner" role="status">
+          {ofdPreview ? (
+            <>
+              <span className="ofd-banner-text" title={ofdPreview.note || undefined}>
+                已转换为 PDF 预览{ofdPreview.note && ofdPreview.note !== "缓存命中" ? ` · ${ofdPreview.note}` : ""}
+              </span>
+              <button type="button" className="ofd-banner-btn" onClick={() => setDocMode("convert")}>另存 PDF</button>
+            </>
+          ) : (
+            <span className="ofd-banner-text">正在生成 PDF 预览…</span>
+          )}
+        </div>
+      )}
+
       {/* 主体 */}
       <div className="reader-body">
         {readerBodyMode === "pages" ? (
@@ -861,7 +778,7 @@ export default function Reader() {
         ) : (
           <>
             {!narrow || (narrow && sideOpen) ? (
-              <SidePanel file={file} tab={tab} sideOpen={sideOpen} setSideOpen={setSideOpen} passwordProtected={passwordProtected}
+              <SidePanel file={sideFile} tab={tab} sideOpen={sideOpen} setSideOpen={setSideOpen} passwordProtected={passwordProtected}
                          narrow={narrow} overlay={narrow} doc={doc} pageNum={pageNum} jump={jump} info={info}
                          query={query} setQuery={setQuery} hits={hits} searching={searching} activeHit={activeHit}
                          setActiveHit={setActiveHit} stepHit={stepHit} scanned={!!scanned} runOcr={runOcr}
@@ -903,13 +820,23 @@ export default function Reader() {
                   )}
                   {continuous && selPopup && <SelectionPopup popup={selPopup} onCopy={copySelection} onAi={sendToAi} onClose={() => setSelPopup(null)} />}
                 </div>
+              ) : isOfd && !ofdPreview ? (
+                <div className="ofd-note ofd-preview-note">
+                  <p>正在生成 PDF 预览（版式级转换，缓存后秒开）…</p>
+                  {ofdTask && ofdTask.status !== "submitting" && (
+                    <SwordProgress value={ofdTask.progress} unknown={ofdTask.progressKnown === false} label="OFD 预览转换" />
+                  )}
+                  {ofdError && <p className="wf-error" role="alert">{ofdError}</p>}
+                </div>
               ) : (
                 <div className="ofd-note">载入中…</div>
               )}
             </div>
-            {readerBodyMode === "convert" && (
+            {readerBodyMode === "convert" && (isOfd ? (
+              <ReaderOfdPanel file={file} refreshFiles={refreshFiles} />
+            ) : (
               <ReaderConvertPanel file={file} target={convertTarget} onTargetChange={setConvertTarget} refreshFiles={refreshFiles} pageNum={pageNum} />
-            )}
+            ))}
           </>
         )}
       </div>
@@ -955,6 +882,12 @@ export default function Reader() {
         </button>
         <button type="button" className="sb-btn sb-quiet" onClick={() => setViewRotate((r) => (r + 90) % 360)} title="视图旋转（不影响文件）">⟳</button>
       </footer>
+
+      {/* 全屏预览 / 放映覆盖层（v0.2）：复用当前 doc，退出时回到离开时的页 */}
+      {immersive && doc && (
+        <ImmersiveLayer doc={doc} fileTitle={file.name} pageNum={pageNum} mode={immersive}
+                        initial={{ continuous, scale, viewRotate }} onExit={exitImmersive} />
+      )}
 
       {printConfirm && (
         <div className="reader-password-backdrop">

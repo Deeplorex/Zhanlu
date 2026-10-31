@@ -146,7 +146,7 @@ export default function App() {
   }, [refreshFiles, refreshEngines]);
 
   const openFile = useCallback((entry: FileEntry, page?: number) => {
-    if (entry.kind !== "pdf") return;
+    if (entry.kind !== "pdf" && entry.kind !== "ofd") return;
     setCurrent(entry);
     try { localStorage.setItem("zhanlu.current", entry.id); } catch { /* ignore */ }
     setTabs((old) => (old.some((f) => f.id === entry.id) ? old : [...old, entry]));

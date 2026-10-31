@@ -337,7 +337,11 @@ pub fn run() {
 fn pdf_paths(args: impl Iterator<Item = String>, cwd: &std::path::Path) -> Vec<String> {
     args.filter_map(|arg| {
         let path = std::path::PathBuf::from(arg);
-        if !path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) { return None; }
+        if !path.extension().is_some_and(|ext| {
+            ext.eq_ignore_ascii_case("pdf") || ext.eq_ignore_ascii_case("ofd")
+        }) {
+            return None;
+        }
         Some(if path.is_absolute() { path } else { cwd.join(path) }.to_string_lossy().into_owned())
     }).collect()
 }
@@ -350,5 +354,12 @@ mod tests {
         let cwd = std::path::Path::new(r"D:\资料");
         let args = ["--flag", "readme.txt", "合同 空格.PDF", r"C:\文件\另一份.pdf"].map(String::from);
         assert_eq!(pdf_paths(args.into_iter(), cwd), vec![r"D:\资料\合同 空格.PDF", r"C:\文件\另一份.pdf"]);
+    }
+
+    #[test]
+    fn file_activation_accepts_ofd_documents() {
+        let cwd = std::path::Path::new(r"D:\资料");
+        let args = [r"C:\文件\通知.ofd", "notes.txt"].map(String::from);
+        assert_eq!(pdf_paths(args.into_iter(), cwd), vec![r"C:\文件\通知.ofd"]);
     }
 }

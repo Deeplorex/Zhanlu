@@ -4,7 +4,7 @@ import React from "react";
  *  按 Figma 06 画板 59–67 接入模式行、工具栏与窄窗口导航。print 为 2026-10-26 补齐组件。 */
 export type IconName =
   | "read" | "pages" | "convert" | "search" | "ai" | "split" | "merge"
-  | "images" | "output" | "print" | "trash" | "markdown";
+  | "images" | "output" | "print" | "trash" | "markdown" | "expand" | "play";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   read: (
@@ -67,6 +67,14 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <rect x="2.5" y="5" width="19" height="14" rx="2" />
       <path d="M6 15V9l3 3 3-3v6M17 9v6m-2-2 2 2 2-2" />
+    </>
+  ),
+  expand: <path d="M4 9.5V4h5.5M20 9.5V4h-5.5M4 14.5V20h5.5M20 14.5V20h-5.5" />,
+  play: (
+    <>
+      <rect x="3" y="4" width="18" height="13" rx="2" />
+      <path d="m10.4 7.8 4.4 2.7-4.4 2.7V7.8Z" />
+      <path d="M8.5 20.5h7" />
     </>
   ),
 };

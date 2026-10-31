@@ -75,6 +75,6 @@ def export_xlsx(data: list[dict], out: Path) -> Path:
             for row in rows:
                 ws.append(row)
     if n == 0:
-        raise OpError("未检测到表格")
+        raise OpError("所选页面未检测到表格，请调整页码范围。")
     wb.save(out)
     return out

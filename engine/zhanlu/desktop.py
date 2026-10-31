@@ -23,9 +23,9 @@ def _register(paths, store, allow_images=False):
     for value in paths:
         try:
             path = Path(value).resolve(strict=True)
-            allowed = (".pdf", ".png", ".jpg", ".jpeg") if allow_images else (".pdf",)
+            allowed = (".pdf", ".ofd", ".png", ".jpg", ".jpeg") if allow_images else (".pdf", ".ofd")
             if not path.is_file() or path.suffix.lower() not in allowed:
-                raise ValueError("请选择 PDF 或 PNG/JPEG 图片" if allow_images else "请选择 PDF 文件")
+                raise ValueError("请选择 PDF、OFD 或 PNG/JPEG 图片" if allow_images else "请选择 PDF 或 OFD 文件")
             stat = path.stat()
             entry = next((e for e in store.list() if e["path"] == str(path)
                           and e["mtime"] == stat.st_mtime and e["size"] == stat.st_size), None)

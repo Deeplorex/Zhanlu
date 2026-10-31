@@ -21,6 +21,7 @@ INBOX_DIR = APP_DIR / "inbox"
 OUT_DIR = APP_DIR / "out"
 TEMP_DIR = APP_DIR / "tmp"
 THUMB_DIR = APP_DIR / "thumbs"
+CACHE_OFD_DIR = APP_DIR / "cache" / "ofd"   # OFD→PDF 预览缓存（按内容 sha 命中）
 PLUGINS_DIR = APP_DIR / "plugins"          # 所有插件（运行时/模型）统一放这里，删目录即卸载
 OCR_MODELS_DIR = PLUGINS_DIR / "ocr-models"
 CONFIG_FILE = APP_DIR / "config.json"
@@ -37,7 +38,7 @@ DEFAULT_SETTINGS = {
 
 
 def ensure_dirs() -> None:
-    for d in (APP_DIR, INBOX_DIR, OUT_DIR, TEMP_DIR, THUMB_DIR, PLUGINS_DIR):
+    for d in (APP_DIR, INBOX_DIR, OUT_DIR, TEMP_DIR, THUMB_DIR, CACHE_OFD_DIR, PLUGINS_DIR):
         d.mkdir(parents=True, exist_ok=True)
 
 

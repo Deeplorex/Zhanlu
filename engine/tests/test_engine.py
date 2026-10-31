@@ -221,6 +221,109 @@ class TestExtractAndGen(unittest.TestCase):
         self.assertTrue(out2.stat().st_size > 10000)
 
 
+class TestConvertOfficeTargets(unittest.TestCase):
+    """convert_pdf 新目标（docx/pptx/xlsx/csv）：预览说明、执行产物与报错。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dir = TMP / "convert-office"
+        cls.dir.mkdir(parents=True, exist_ok=True)
+
+    def _ctx(self):
+        from zhanlu.tasks import TaskContext
+
+        return TaskContext({"id": "office-test", "outputs": [], "pending_outputs": [], "cancel": threading.Event()})
+
+    def _run(self, source, params, pages_total):
+        from zhanlu import jobs
+        from zhanlu.tasks import TaskContext
+
+        entry = {"id": "office-src", "path": str(source), "name": source.name}
+        task = {"id": "office-test", "outputs": [], "pending_outputs": [], "cancel": threading.Event()}
+        with patch.object(jobs, "_entry_path", return_value=(source, entry)), \
+             patch.object(jobs, "_pages_of", return_value=pages_total):
+            return jobs.run_convert_pdf({"id": entry["id"], "dir": str(self.dir), **params},
+                                        TaskContext(task))
+
+    def _preview(self, source, params, pages_total):
+        from zhanlu import jobs
+
+        entry = {"id": "office-src", "path": str(source), "name": source.name}
+        with patch.object(jobs, "_entry_path", return_value=(source, entry)), \
+             patch.object(jobs, "_pages_of", return_value=pages_total):
+            return jobs.preview_convert_pdf({"id": entry["id"], "dir": str(self.dir), **params})
+
+    def test_docx_export_contains_selected_page_text(self):
+        source = make_pdf(self.dir / "doc.pdf", 3, text=True)
+        result = self._run(source, {"target": "docx", "prefix": "doc", "pages": "2"}, 3)
+        out = Path(result["files"][0]["path"])
+        self.assertEqual(out.suffix, ".docx")
+        from docx import Document
+
+        text = "\n".join(p.text for p in Document(str(out)).paragraphs)
+        self.assertIn("Page 2 sample text", text)
+        self.assertNotIn("Page 1 sample text", text)
+
+    def test_docx_export_sanitizes_control_characters(self):
+        """提取文本混入 XML 非法控制字符时照常导出，不报 ValueError（真实 PDF 的 ToUnicode
+        映射会让 \x0b 等直达文本层；Helvetica/WinAnsi fixture 会把控制字节渲染成 ■，无法复现）。"""
+        from zhanlu.core import export as export_mod
+
+        src = make_pdf(self.dir / "plain.pdf", 1)
+        out = self.dir / "ctrl.docx"
+        with patch.object(export_mod, "extract_text", return_value=["bad\x0bchars\x01here\x02tail"]):
+            export.pdf_to_docx(src, out)
+        from docx import Document
+
+        text = "\n".join(p.text for p in Document(str(out)).paragraphs)
+        self.assertIn("charsheretail", text)  # \x0b 按 splitlines 成行属预期，\x01/\x02 被清理
+        self.assertNotRegex(text, r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+    def test_pptx_export_slide_per_page_and_dpi_guard(self):
+        source = make_pdf(self.dir / "ppt.pdf", 2, text=True)
+        result = self._run(source, {"target": "pptx", "prefix": "ppt", "dpi": 96}, 2)
+        out = Path(result["files"][0]["path"])
+        self.assertEqual(out.suffix, ".pptx")
+        from pptx import Presentation
+
+        self.assertEqual(len(Presentation(str(out)).slides), 2)
+        with self.assertRaisesRegex(pdfops.OpError, "DPI"):
+            self._run(source, {"target": "pptx", "prefix": "ppt", "dpi": 120}, 2)
+
+    def test_xlsx_export_and_empty_preview_block(self):
+        source = make_table_pdf(self.dir / "table.pdf")
+        prev = self._preview(source, {"target": "xlsx", "prefix": "tbl"}, 1)
+        self.assertTrue(prev["ok"])
+        self.assertIn("检测到", prev["summary"])
+        result = self._run(source, {"target": "xlsx", "prefix": "tbl"}, 1)
+        out = Path(result["files"][0]["path"])
+        import openpyxl
+
+        wb = openpyxl.load_workbook(str(out))
+        self.assertEqual(wb.sheetnames[0], "P1T1")
+        self.assertEqual(wb[wb.sheetnames[0]].cell(1, 1).value, "项目")
+
+        blank = make_pdf(self.dir / "blank.pdf", 1)
+        prev_empty = self._preview(blank, {"target": "xlsx", "prefix": "tbl-blank"}, 1)
+        self.assertFalse(prev_empty["ok"])
+        self.assertIn("未检测到表格", prev_empty["error"])
+        with self.assertRaisesRegex(pdfops.OpError, "未检测到表格"):
+            self._run(blank, {"target": "xlsx", "prefix": "tbl-blank"}, 1)
+        self.assertFalse((self.dir / "tbl-blank.xlsx").exists())
+
+    def test_csv_export(self):
+        source = make_table_pdf(self.dir / "table2.pdf")
+        result = self._run(source, {"target": "csv", "prefix": "tbl2"}, 1)
+        out = Path(result["files"][0]["path"])
+        self.assertEqual(out.suffix, ".csv")
+        self.assertIn("71,488,207.90", out.read_text(encoding="utf-8-sig"))
+
+    def test_unknown_target_message(self):
+        source = make_pdf(self.dir / "bad.pdf", 1)
+        with self.assertRaisesRegex(pdfops.OpError, "Markdown"):
+            self._run(source, {"target": "exe", "prefix": "bad"}, 1)
+
+
 class TestOfd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -241,9 +344,82 @@ class TestOfd(unittest.TestCase):
 
     def test_ofd_to_pdf(self):
         out = self.dir / "conv.pdf"
-        ofd.to_pdf(self.src, out)
+        result = ofd.to_pdf(self.src, out)
         reader = PdfReader(str(out))
         self.assertEqual(len(reader.pages), 2)
+        self.assertIn("版式级", result["note"])
+
+
+class TestOfdTasks(unittest.TestCase):
+    """OFD 预览缓存与转 PDF 任务：交付、缓存命中与文字重建回落。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dir = TMP / "ofd-tasks"
+        cls.dir.mkdir(parents=True, exist_ok=True)
+
+    def _ctx(self):
+        from zhanlu.tasks import TaskContext
+
+        return TaskContext({"id": "ofd-task", "outputs": [], "pending_outputs": [], "cancel": threading.Event()})
+
+    def _entry(self, source):
+        return {"id": "ofd-src", "path": str(source), "name": source.name, "kind": "ofd"}
+
+    def test_preview_convert_delivers_pdf_with_cache(self):
+        from zhanlu import jobs
+        from zhanlu.tasks import TaskContext
+
+        source = make_ofd(self.dir / "doc.ofd")
+        entry = self._entry(source)
+        with patch.object(jobs, "_entry_path", return_value=(source, entry)):
+            prev = jobs.preview_ofd_convert({"id": "ofd-src", "dir": str(self.dir)})
+            self.assertTrue(prev["ok"])
+            self.assertEqual(prev["outputs"][0]["name"], "doc-转换.pdf")
+            ctx = self._ctx()
+            result = jobs.run_ofd_convert({"id": "ofd-src", "dir": str(self.dir)}, ctx)
+            out = Path(result["files"][0]["path"])
+            self.assertEqual(out.suffix, ".pdf")
+            self.assertEqual(len(PdfReader(str(out)).pages), 2)
+            # 预览缓存命中（同内容第二次转换走缓存）
+            with patch.object(jobs, "_check_run_target"), patch.object(jobs, "_deliver", return_value=entry), \
+                 patch.object(jobs.store, "set_pages"):
+                second = jobs.run_ofd_convert({"id": "ofd-src", "name": "doc2", "dir": str(self.dir)},
+                                              TaskContext({"id": "ofd-task2", "outputs": [], "pending_outputs": [], "cancel": threading.Event()}))
+            self.assertIn("缓存命中", second["note"])
+
+    def test_ofd_preview_registers_internal_file(self):
+        from zhanlu import jobs
+
+        source = make_ofd(self.dir / "doc2.ofd")
+        entry = self._entry(source)
+        with patch.object(jobs, "_entry_path", return_value=(source, entry)):
+            result = jobs.run_ofd_preview({"id": "ofd-src"}, self._ctx())
+        cached = result["file"]
+        self.assertEqual(cached["kind"], "pdf")
+        self.assertFalse(cached.get("recent", True), "预览缓存不应进入最近文件")
+        self.assertEqual(cached["pages"], 2)
+        self.assertTrue(Path(cached["path"]).exists())
+
+    def test_layout_failure_falls_back_to_text_rebuild(self):
+        from zhanlu import jobs
+
+        source = make_ofd(self.dir / "doc3.ofd")
+        entry = self._entry(source)
+        with patch.object(jobs, "_entry_path", return_value=(source, entry)), \
+             patch.object(jobs.ofd, "to_pdf", side_effect=RuntimeError("模拟版式失败")):
+            result = jobs.run_ofd_preview({"id": "ofd-src"}, self._ctx())
+        self.assertIn("文字重建版", result["note"])
+        self.assertTrue(Path(result["file"]["path"]).exists())
+
+    def test_non_ofd_rejected(self):
+        from zhanlu import jobs
+
+        source = make_pdf(self.dir / "plain.pdf", 1)
+        entry = {"id": "pdf-src", "path": str(source), "name": source.name, "kind": "pdf"}
+        with patch.object(jobs, "_entry_path", return_value=(source, entry)):
+            with self.assertRaisesRegex(pdfops.OpError, "仅支持 OFD"):
+                jobs.preview_ofd_convert({"id": "pdf-src", "dir": str(self.dir)})
 
 
 class TestAiStore(unittest.TestCase):
@@ -881,10 +1057,16 @@ class TestServerApi(unittest.TestCase):
         registered = {f["id"]: f for f in self._get("/api/files")["files"]}
         self.assertEqual([registered[o["id"]]["pages"] for o in t["outputs"]], [2, 2])
 
-        # 同名冲突：预览必须失败且指出冲突
+        # 同名冲突：任何保存位置都自动编号（v0.2），预览展示编号后的最终交付名
         preview2 = self._post("/api/jobs/preview", {"kind": "split", "params": {"id": fid, "mode": "boundary", "boundary": 2, "stem": "T"}})
-        self.assertFalse(preview2["ok"])
-        self.assertTrue(preview2["conflicts"])
+        self.assertTrue(preview2["ok"], str(preview2))
+        numbered = [o["name"] for o in preview2["outputs"]]
+        self.assertEqual(numbered, ["T-01-p001-p002（1）.pdf", "T-02-p003-p004（1）.pdf"])
+        run2 = self._post("/api/jobs/run", {"kind": "split", "params": {"id": fid, "mode": "boundary", "boundary": 2, "stem": "T"}})
+        t3 = self._wait_task(run2["id"])
+        self.assertEqual(t3["status"], "done", str(t3.get("error")))
+        self.assertEqual(sorted(Path(o["path"]).name for o in t3["outputs"]),
+                         ["T-01-p001-p002（1）.pdf", "T-02-p003-p004（1）.pdf"])
 
         # PDF→TXT 转换
         conv = self._post("/api/jobs/run", {"kind": "convert_pdf", "params": {"id": fid, "target": "txt", "prefix": "T"}})

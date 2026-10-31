@@ -265,17 +265,17 @@ _PS_PICK_FOLDER = _PS_DPI_AWARE + (
 _PS_PICK_PDFS = _PS_DPI_AWARE + (
     "Add-Type -AssemblyName System.Windows.Forms | Out-Null;"
     "$d = New-Object System.Windows.Forms.OpenFileDialog;"
-    "$d.Title = '打开 PDF';"
-    "$d.Filter = 'PDF 文档|*.pdf';"
+    "$d.Title = '打开 PDF 或 OFD';"
+    "$d.Filter = 'PDF 和 OFD 文档|*.pdf;*.ofd';"
     "$d.Multiselect = $true;"
     "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)"
     "{ Write-Output $d.FileNames }"
 )
 
 _PS_PICK_CONVERT = _PS_PICK_PDFS.replace(
-    "$d.Filter = 'PDF 文档|*.pdf';",
-    "$d.Filter = 'PDF 和图片|*.pdf;*.png;*.jpg;*.jpeg';",
-).replace("$d.Title = '打开 PDF';", "$d.Title = '选择 PDF 或图片';")
+    "$d.Filter = 'PDF 和 OFD 文档|*.pdf;*.ofd';",
+    "$d.Filter = 'PDF、OFD 和图片|*.pdf;*.ofd;*.png;*.jpg;*.jpeg';",
+).replace("$d.Title = '打开 PDF 或 OFD';", "$d.Title = '选择 PDF、OFD 或图片';")
 
 
 def _register_picked(paths: list[str], allow_images: bool = False) -> tuple[list[dict], list[str]]:
@@ -287,9 +287,9 @@ def _register_picked(paths: list[str], allow_images: bool = False) -> tuple[list
     for value in paths:
         try:
             p = Path(str(value)).resolve(strict=True)
-            allowed = {".pdf", ".png", ".jpg", ".jpeg"} if allow_images else {".pdf"}
+            allowed = {".pdf", ".ofd", ".png", ".jpg", ".jpeg"} if allow_images else {".pdf", ".ofd"}
             if not p.is_file() or p.suffix.lower() not in allowed:
-                raise ValueError("请选择 PDF 或 PNG/JPEG 图片" if allow_images else "请选择 PDF 文件")
+                raise ValueError("请选择 PDF、OFD 或 PNG/JPEG 图片" if allow_images else "请选择 PDF 或 OFD 文件")
             stat = p.stat()
             entry = next(
                 (e for e in store.list()

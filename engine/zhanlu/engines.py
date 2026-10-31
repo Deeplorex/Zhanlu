@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 from . import config
-from .core import ai, ocrpdf, pdfops, tables, topdf
+from .core import ai, export, ocrpdf, pdfops, tables, topdf
 from .core.document_ai import is_local_model
 
 _WIN_OFFICE_PATHS = [
@@ -82,6 +82,8 @@ def snapshot() -> dict:
             "render": pdfops.HAS_PDFIUM,
             "tables": tables.HAS_PDFPLUMBER,
             "xlsx": tables.HAS_OPENPYXL,
+            "docx": export.HAS_DOCX,
+            "pptx": export.HAS_PPTX,
             "images2pdf": True,
             "genpdf": True,
             "encrypt": pdfops.HAS_CRYPTO,
@@ -92,30 +94,25 @@ def snapshot() -> dict:
 def convert_targets() -> list[dict]:
     """前端转换中心的目标格式矩阵。"""
     snap = snapshot()
-    office_pdf = snap["office"]["available"] or snap["libreoffice"]["available"]
 
     def t(target, engine, available, note=""):
         return {"target": target, "engine": engine, "available": available, "note": note}
 
     return {
         "pdf": [
-            t("txt", "内置", True),
-            t("md", "内置", True),
             t("png", "渲染引擎", snap["libs"]["render"]),
             t("jpg", "渲染引擎", snap["libs"]["render"]),
+            t("md", "内置", True),
+            t("txt", "内置", True),
+            t("docx", "内置 · 基础版", snap["libs"]["docx"], "文字按页整理，不含原版式"),
+            t("pptx", "内置 · 图片模式", snap["libs"]["pptx"], "每页一张幻灯片图片"),
             t("xlsx", "表格引擎", snap["libs"]["tables"] and snap["libs"]["xlsx"]),
             t("csv", "表格引擎", snap["libs"]["tables"]),
-            t("docx", "AI 版式增强", snap["ai"]["configured"], "需配置 AI 模型；复杂版式还原效果取决于模型"),
-            t("pptx", "AI 版式增强", snap["ai"]["configured"], "需配置 AI 模型"),
-            t("ofd", "ofdrw 插件", False, "插件体系提供，当前未安装"),
         ],
         "ofd": [
-            t("pdf", "内置（文本重建·实验）", True),
+            t("pdf", "内置 · 版式级", True, "文字/矢量/图片按原坐标转换；电子签章暂不渲染"),
         ],
         "image": [t("pdf", "img2pdf", True)],
         "txt": [t("pdf", "内置", True)],
         "md": [t("pdf", "内置", True)],
-        "docx": [t("pdf", "本机 Office / LibreOffice", office_pdf, "未检测到可用引擎" if not office_pdf else "")],
-        "xlsx": [t("pdf", "本机 Office / LibreOffice", office_pdf, "未检测到可用引擎" if not office_pdf else "")],
-        "pptx": [t("pdf", "本机 Office / LibreOffice", office_pdf, "未检测到可用引擎" if not office_pdf else "")],
     }
