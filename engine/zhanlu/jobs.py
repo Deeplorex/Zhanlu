@@ -13,6 +13,7 @@ import hashlib
 import os
 import tempfile
 import time
+import threading
 from pathlib import Path
 
 from . import config, localai
@@ -22,6 +23,8 @@ from .tasks import Cancelled, TaskHub
 
 store = Store()
 hub = TaskHub()
+_ofd_cache_locks: dict[str, threading.Lock] = {}
+_ofd_cache_guard = threading.Lock()
 
 # 保存位置参数的保留值：与源文件同目录（06 改版 107–115）
 SOURCE_DIR_OPT = "@source"
@@ -381,7 +384,7 @@ def preview_convert_pdf(params: dict) -> dict:
         if dpi not in (96, 150, 300):
             raise pdfops.OpError("DPI 仅支持 96 / 150 / 300")
         outs = [{"name": f"{prefix}.pptx", "pages": len(selected),
-                 "note": "一份 PPT · 每页一张幻灯片图片（16:9）"}]
+                 "note": "一份 PPT · 每页一张幻灯片图片（16:9，等比居中）"}]
         return _preview_result(params.get("dir"), outs,
                                f"1 个 PPT · {len(selected)} 页 · {dpi} DPI", warnings, sources=[entry])
     if target in ("xlsx", "csv"):
@@ -391,6 +394,12 @@ def preview_convert_pdf(params: dict) -> dict:
         except pdfops.OpError:
             data = []
         n_tables = sum(len(d["tables"]) for d in data)
+        # 前八页没有表格时继续分块检查，只有全部所选页均无表格才拦截。
+        while not n_tables and len(probe) < len(selected):
+            batch = selected[len(probe):len(probe) + tables.MAX_PAGES_PER_CALL]
+            data = tables.extract(p, pages=",".join(str(i + 1) for i in batch))
+            probe.extend(batch)
+            n_tables += sum(len(d["tables"]) for d in data)
         if not n_tables:
             return {
                 "ok": False,
@@ -400,7 +409,7 @@ def preview_convert_pdf(params: dict) -> dict:
                 "conflicts": [], "summary": "未检测到表格",
             }
         if len(selected) > len(probe):
-            warnings.append(f"表格逐页提取较慢：本次共 {len(selected)} 页，预览仅检查了前 {len(probe)} 页。")
+            warnings.append(f"预览仅检查了前 {len(probe)} 页，检测到 {n_tables} 张表格；执行时将检查所选全部 {len(selected)} 页，无表格则不生成文件。")
         label = "Excel" if target == "xlsx" else "CSV"
         outs = [{"name": f"{prefix}.{target}", "pages": len(selected),
                  "note": f"检测到 {n_tables} 张表格（检查了前 {len(probe)} 页）"}]
@@ -796,12 +805,24 @@ def _ofd_cached_pdf(p: Path, ctx=None, progress=None, should_cancel=None) -> tup
     with p.open("rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             digest.update(chunk)
-    cache = config.ensure_dirs() or config.CACHE_OFD_DIR
-    out = cache / f"{digest.hexdigest()}.pdf"
-    if out.exists() and out.stat().st_size > 0:
-        return out, "缓存命中"
+    key = f"v2-{digest.hexdigest()}"  # 转换器修复后不复用旧版缺字缓存。
+    with _ofd_cache_guard:
+        lock = _ofd_cache_locks.setdefault(key, threading.Lock())
+    with lock:
+        if ctx is not None:
+            ctx.check()
+        return _ofd_build_cache(p, key, ctx, progress, should_cancel)
 
-    tmp = (ctx.temp_root if ctx is not None else config.TEMP_DIR) / f"ofd-{digest.hexdigest()[:12]}.pdf"
+
+def _ofd_build_cache(p: Path, key: str, ctx, progress, should_cancel) -> tuple[Path, str]:
+    config.ensure_dirs()
+    out = config.CACHE_OFD_DIR / f"{key}.pdf"
+    metadata_path = out.with_suffix(".json")
+    metadata = config.load_json(metadata_path, {})
+    if out.exists() and out.stat().st_size > 0 and isinstance(metadata, dict) and isinstance(metadata.get("note"), str):
+        return out, metadata["note"]
+
+    tmp = (ctx.temp_root if ctx is not None else config.TEMP_DIR) / f"ofd-{key[:12]}.pdf"
     tmp.parent.mkdir(parents=True, exist_ok=True)
     note = ""
     try:
@@ -818,6 +839,7 @@ def _ofd_cached_pdf(p: Path, ctx=None, progress=None, should_cancel=None) -> tup
         ofd.OfdDoc(p).to_pdf_text_rebuild(tmp)
         note = "文字重建版（该文件版式转换受限，仅保留文字）"
     os.replace(tmp, out)  # 缓存原子落位
+    config.save_json(metadata_path, {"note": note})
     return out, note
 
 

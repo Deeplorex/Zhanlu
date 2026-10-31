@@ -6,37 +6,20 @@ import { useJob } from "../../shared/workflow";
 import SwordProgress, { swordRunningText } from "../../shared/SwordProgress";
 import type { FileEntry } from "../../shared/types";
 
-export type ReaderConvertTarget = "png" | "jpg" | "txt" | "md" | "docx" | "xlsx" | "csv" | "pptx";
+export type ReaderConvertTarget = "png" | "jpg" | "txt" | "md";
 
-/** 专属右栏（06 改版 107–109，v0.2 扩展）：顶部目标格式组可在全部目标间切换；
- *  图片仅 PNG/JPEG；Markdown/TXT/Word/Excel/CSV/PPT 为固定输出；保存位置用选择框，
- *  重名自动编号不覆盖。 */
-const FIXED_OUTPUT: Record<"md" | "txt" | "docx" | "xlsx" | "csv" | "pptx", string> = {
+/** 专属右栏（06 改版 107–109）：随工具栏入口核对当前目标。
+ * Office 基础版仅在独立转换任务页提供。 */
+const FIXED_OUTPUT: Record<"md" | "txt", string> = {
   md: "Markdown (.md) · 单个文件",
   txt: "纯文本 (.txt) · 单个文件",
-  docx: "Word (.docx) · 文字按页整理（基础版）",
-  xlsx: "Excel (.xlsx) · 提取检测到的表格",
-  csv: "CSV (.csv) · 提取检测到的表格",
-  pptx: "PPT (.pptx) · 每页一张幻灯片图片",
 };
-
-const TARGET_CHIPS: { id: ReaderConvertTarget; label: string }[] = [
-  { id: "png", label: "图片" },
-  { id: "md", label: "Markdown" },
-  { id: "txt", label: "TXT" },
-  { id: "docx", label: "Word" },
-  { id: "xlsx", label: "Excel" },
-  { id: "csv", label: "CSV" },
-  { id: "pptx", label: "PPT" },
-];
 
 const RUN_LABEL: Record<ReaderConvertTarget, string> = {
   png: "开始转换图片 →", jpg: "开始转换图片 →", md: "开始转换 Markdown →", txt: "开始提取 TXT →",
-  docx: "开始转换 Word →", xlsx: "开始转换 Excel →", csv: "开始转换 CSV →", pptx: "开始转换 PPT →",
 };
 const TITLE: Record<ReaderConvertTarget, string> = {
   png: "转换为图片", jpg: "转换为图片", md: "转换为 Markdown", txt: "提取 TXT",
-  docx: "转换为 Word", xlsx: "转换为 Excel", csv: "转换为 CSV", pptx: "转换为 PPT",
 };
 const DPI_LABEL: Record<number, string> = { 96: "标准 · 96 DPI", 150: "高 · 150 DPI", 300: "印刷 · 300 DPI" };
 
@@ -62,7 +45,7 @@ export default function ReaderConvertPanel({ file, target, onTargetChange, refre
   const submittedFor = useRef<ReaderConvertTarget | null>(null);
 
   const isImage = target === "png" || target === "jpg";
-  const withDpi = isImage || target === "pptx";
+  const withDpi = isImage;
   const effPages = range === "all" ? undefined : range === "current" ? String(pageNum) : pages.trim();
   const dirParam = saveMode === "source" ? "@source" : saveMode === "custom" && customDir ? customDir : undefined;
   // 目标一致地驱动预览与请求：文字转换不携带图片专用参数
@@ -114,7 +97,7 @@ export default function ReaderConvertPanel({ file, target, onTargetChange, refre
   const fixed = target in FIXED_OUTPUT ? FIXED_OUTPUT[target as keyof typeof FIXED_OUTPUT] : null;
   const saveError = job.previewError || (job.preview && !job.preview.ok ? job.preview.error : null);
   // 扫描页提示只对依赖文字层的目标有意义
-  const needsText = target === "md" || target === "txt" || target === "docx" || target === "xlsx" || target === "csv";
+  const needsText = target === "md" || target === "txt";
 
   return (
     <aside className="convert-panel" aria-label={TITLE[target]}>
@@ -144,22 +127,6 @@ export default function ReaderConvertPanel({ file, target, onTargetChange, refre
           </div>
         ) : (
           <>
-            <div className="cfield">
-              <span className="convert-label">目标格式</span>
-              <div className="fmt-grid" role="radiogroup" aria-label="目标格式">
-                {TARGET_CHIPS.map((chip) => {
-                  const on = isImage ? chip.id === "png" : target === chip.id;
-                  return (
-                    <button type="button" key={chip.id} role="radio" aria-checked={on}
-                            className={"fmt-pair-btn" + (on ? " on" : "")}
-                            onClick={() => onTargetChange(chip.id)}>
-                      {chip.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {isImage && (
               <div className="cfield">
                 <span className="convert-label">图片格式</span>

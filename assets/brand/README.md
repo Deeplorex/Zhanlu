@@ -14,7 +14,9 @@
 | 横版 Logo | `wordmark.svg`、`wordmark-inverse.svg`；对应 `raster/wordmark-light.png`、`raster/wordmark-dark.png` |
 | 桌面与启动器 | `raster/app-icon-{16,24,32,48,64,128,256,512,1024}.png`，以及 `raster/app-icon.ico` |
 | GitHub Social | `github-social.svg` 是可编辑源稿；上传 `raster/github-social.png`，尺寸 1280 × 640、约 50 KB |
-| 功能图标 | `../icons/*.svg` 共 15 枚：read、pages、convert、ai、split、merge、images、search、rotate、output、folder、tasks、print、markdown、trash |
+| 功能图标 | `../icons/*.svg` 共 26 枚；阅读、页面、转换、文件、文字、表格、全屏和放映共用同一套矢量规范 |
+
+v0.2.0 Review 补齐 11 枚：`expand`、`play`、`file`、`text`、`word`、`table`、`chevron-left`、`chevron-right`、`plus`、`minus`、`shrink`。已有 `rotate` 接入阅读底栏。Excel 与 CSV 共用表格图标，以文字区分格式；PPT 与放映共用演示图标。前端 `Icon.tsx` 直接读取本目录 SVG，不再另维护一份路径。
 
 2026-10-27 补充 `markdown.svg` 与 `trash.svg`：前者用于 Markdown 转换入口，后者沿用应用已有垃圾桶路径，用于任务记录“全部清理”。尺寸与位置见[88 图标规范](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=234-3275)；清理不会删除已生成文件。
 

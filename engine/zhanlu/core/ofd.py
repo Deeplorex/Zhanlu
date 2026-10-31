@@ -180,7 +180,6 @@ _SYSTEM_FONT_MAP: list[tuple[tuple[str, ...], str]] = [
     (("times", "georgia", "serif"), "times.ttf"),
     (("courier", "mono", "consola"), "consola.ttf"),
 ]
-_FALLBACK_FONT = "STSong-Light"  # reportlab 内置 CID 字体，无需文件
 
 _FONT_WINDOW_DIRS = ("C:/Windows/Fonts",)
 
@@ -373,7 +372,7 @@ def _match_system_font(name: str) -> str | None:
 
 
 class _FontBook:
-    """FontID → reportlab 字体名。包内 FontFile 优先，其次系统字体映射，最后 STSong-Light。"""
+    """FontID → reportlab 字体名。包内字体优先，其次系统映射，最后已注册的中文字体。"""
 
     def __init__(self, fonts: dict, zf: zipfile.ZipFile):
         self._map: dict[str, str] = {}
@@ -407,7 +406,7 @@ class _FontBook:
         if rl_name is None:
             rl_name = _match_system_font(entry.get("name", ""))
         if rl_name is None:
-            rl_name = _FALLBACK_FONT
+            rl_name = topdf.cjk_font()
         self._map[fid] = rl_name
         return rl_name
 
@@ -824,7 +823,8 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
                 elif kind == "image":
                     _draw_image(c, el, images, zf, h, otm, K)
             except Exception:
-                continue  # 单个对象失败不中断整页
+                notes.add({"text": "部分文字未渲染", "path": "部分图形未渲染", "image": "部分图片未渲染"}[kind])
+                continue
         c.showPage()
         if progress is not None:
             progress(0.9 * (pg_no + 1) / total, f"已转换 {pg_no + 1}/{total} 页")

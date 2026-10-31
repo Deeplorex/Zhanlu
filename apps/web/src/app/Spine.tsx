@@ -382,12 +382,12 @@ export default function Spine({ route }: { route: string }) {
   const appCmds: FindCmd[] = [
     { key: "merge", title: "合并 PDF", hint: "多份文件合成一份 · 独立任务", run: () => { setShowFind(false); location.hash = "#/merge"; } },
     { key: "split", title: "拆分 PDF", hint: "按页生成新文件 · 独立任务", run: () => { setShowFind(false); location.hash = "#/split"; } },
-    { key: "open", title: "打开 PDF", hint: "从本机选择文件", run: () => { setShowFind(false); void openViaNative(); } },
+    { key: "open", title: "打开 PDF / OFD", hint: "从本机选择文件", run: () => { setShowFind(false); void openViaNative(); } },
     { key: "settings", title: "设置", hint: "模型与 AI、文字识别、文件与输出", run: () => { setShowFind(false); location.hash = "#/settings"; } },
   ];
   const q = findQ.trim().toLowerCase();
   const match = (c: FindCmd) => !q || c.title.toLowerCase().includes(q) || c.hint.includes(q);
-  const recentPdfs = files.filter((f) => f.kind === "pdf");
+  const recentPdfs = files.filter((f) => f.kind === "pdf" || f.kind === "ofd");
   const fileCmds: FindCmd[] = recentPdfs.slice(0, 4).map((f) => ({
     key: `file-${f.id}`, title: `打开 · ${f.name}`, hint: `最近文件 · ${f.pages ? `${f.pages} 页` : "最近文件"}`,
     run: () => { setShowFind(false); openFile(f); },
@@ -395,7 +395,7 @@ export default function Spine({ route }: { route: string }) {
   const shownDocCmds = docCmds.filter(match).slice(0, q ? 8 : 4);
   const shownAppCmds = appCmds.filter(match).slice(0, 8 - shownDocCmds.length);
   const findGroups: { label: string; items: FindCmd[] }[] = [
-    { label: `当前 PDF · ${current?.name || ""}`, items: shownDocCmds },
+    { label: `当前 ${isOfd ? "OFD" : "PDF"} · ${current?.name || ""}`, items: shownDocCmds },
     { label: "应用命令", items: shownAppCmds },
     { label: "最近文件", items: fileCmds.filter(match) },
   ].filter((g) => g.items.length > 0);
@@ -516,9 +516,9 @@ export default function Spine({ route }: { route: string }) {
           )}
         </div>
         <button type="button" className={`workspace-open${narrow ? " boxed" : ""}${narrow && tabCount >= 2 ? " compact" : ""}`}
-                aria-label="打开 PDF" title="打开 PDF"
+                aria-label="打开 PDF 或 OFD" title="打开 PDF 或 OFD"
                 onClick={() => void openViaNative()}>
-          {narrow ? (tabCount >= 2 ? "＋" : "＋ 打开") : "＋ 打开 PDF"}
+          {narrow ? (tabCount >= 2 ? "＋" : "＋ 打开") : "＋ 打开"}
         </button>
         <input ref={openInputRef} type="file" hidden accept=".pdf,.ofd" multiple
                onChange={(e) => { openPdfFromBar(e.target.files); e.target.value = ""; }} />
@@ -553,7 +553,7 @@ export default function Spine({ route }: { route: string }) {
               <h2>查找功能</h2>
               <span className="finder-esc">Esc 关闭</span>
             </div>
-            <input className="input" autoFocus placeholder={hasDoc ? "搜索当前 PDF 操作或应用命令…" : "搜索应用命令或最近文件…"}
+            <input className="input" autoFocus placeholder={hasDoc ? `搜索当前 ${isOfd ? "OFD" : "PDF"} 操作或应用命令…` : "搜索应用命令或最近文件…"}
                    value={findQ}
                    onChange={(e) => { setFindQ(e.target.value); setFindIdx(0); }}
                    onKeyDown={(e) => {
@@ -563,7 +563,7 @@ export default function Spine({ route }: { route: string }) {
                      if (e.key === "Enter" && flatHits[findIdxSafe]) { e.preventDefault(); flatHits[findIdxSafe].run(); }
                    }} />
             <p className="finder-caption">{hasDoc
-              ? <>当前 PDF：{current?.name} · 文内文字请使用 Ctrl+F</>
+              ? <>当前 {isOfd ? "OFD" : "PDF"}：{current?.name} · 文内文字请使用 Ctrl+F</>
               : <>查找应用操作与最近文件；当前 PDF 的文字请用「查找文字」</>}</p>
             {flatHits.length > 0 ? (
               <div className="finder-list" ref={findListRef}>

@@ -29,6 +29,7 @@ function pickerHint(k: PickerKind): string {
 }
 
 const TASK_KIND_LABELS: Record<string, string> = {
+  convert_ofd: "OFD 转 PDF", ofd_preview: "OFD 预览",
   merge: "合并", split: "拆分", convert_pdf: "转换", images_pdf: "图片转 PDF", ocr: "OCR", ai_analyze: "AI", organize: "页面整理",
 };
 
@@ -177,7 +178,7 @@ export default function Home() {
                  onDragOver={(e) => { e.preventDefault(); setDragOpen(true); }}
                  onDragLeave={() => setDragOpen(false)}
                  onDrop={(e) => { e.preventDefault(); setDragOpen(false); openPdfs(Array.from(e.dataTransfer.files)); }}>
-          <h2>打开 PDF</h2>
+          <h2>打开 PDF / OFD</h2>
           <button type="button" className="home-drop" onClick={() => void openPdfsNative()} disabled={uploading}>
             <span className="home-drop-plus" aria-hidden="true">＋</span>
             <span className="home-drop-text">拖入 PDF / OFD 或点击选择文件</span>
@@ -209,7 +210,7 @@ export default function Home() {
               </span>
               <span className="home-file-open">打开 ↗</span>
             </button>
-          )) : <p className="home-empty">打开第一个 PDF 后会显示在这里。</p>}
+          )) : <p className="home-empty">打开 PDF 或 OFD 后会显示在这里。</p>}
         </section>
 
         <section className="home-card" aria-label="最近任务">

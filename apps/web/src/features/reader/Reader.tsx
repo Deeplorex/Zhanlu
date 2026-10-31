@@ -167,7 +167,7 @@ export default function Reader() {
   const [selPopup, setSelPopup] = useState<{ text: string; page: number; x: number; y: number } | null>(null);
   const [convertTarget, setConvertTargetState] = useState<ReaderConvertTarget>(() => {
     const saved = file ? readerView[file.id]?.convertTarget : undefined;
-    return saved && ["png", "jpg", "txt", "md", "docx", "xlsx", "csv", "pptx"].includes(saved) ? saved : "png";
+    return saved && ["png", "jpg", "txt", "md"].includes(saved) ? saved : "png";
   });
   const setConvertTarget = useCallback((t: ReaderConvertTarget) => {
     setConvertTargetState(t);
@@ -196,6 +196,7 @@ export default function Reader() {
   // OFD：打开即自动转换 PDF 预览（缓存命中秒开），阅读/放映/搜索都作用在预览 PDF 上
   const [ofdPreview, setOfdPreview] = useState<{ file: FileEntry; note: string } | null>(null);
   const [ofdError, setOfdError] = useState<string | null>(null);
+  const [ofdAttempt, setOfdAttempt] = useState(0);
   const [ofdTask, setOfdTask] = useState<{ id: string; status: string; progress: number; progressKnown?: boolean } | null>(null);
   const printAbort = useRef<AbortController | null>(null);
   useEffect(() => () => printAbort.current?.abort(), [file?.id]);
@@ -280,7 +281,7 @@ export default function Reader() {
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file?.id]);
+  }, [file?.id, ofdAttempt]);
 
   // 阅读渲染目标：PDF 是文件本身；OFD 是转换后的预览 PDF
   const viewFileId = file?.kind === "ofd" ? (ofdPreview?.file.id ?? null) : (file?.id ?? null);
@@ -461,7 +462,7 @@ export default function Reader() {
 
   // ---- AI 识别目录（无书签文档；远程模型沿用逐文档发送确认，Figma 52/55 规则） ----
   const startAiToc = async () => {
-    if (!file || tocBusy) return;
+    if (!file || file.kind !== "pdf" || tocBusy) return;
     setTocError(null);
     let picked: { id: string; local: boolean; host: string; model: string } | null = null;
     try {
@@ -622,7 +623,7 @@ export default function Reader() {
   const scanned = currentPageTextless;
 
   const runOcr = async () => {
-    if (!file) return;
+    if (!file || file.kind !== "pdf") return;
     if (ocrTask && (ocrTask.status === "submitting" || ocrTask.status === "running" || ocrTask.status === "cancelling")) return;
     setOcrDone(null);
     setOcrTask({ id: "", status: "submitting", progress: 0 });
@@ -761,12 +762,12 @@ export default function Reader() {
           {ofdPreview ? (
             <>
               <span className="ofd-banner-text" title={ofdPreview.note || undefined}>
-                已转换为 PDF 预览{ofdPreview.note && ofdPreview.note !== "缓存命中" ? ` · ${ofdPreview.note}` : ""}
+                已转换为 PDF 预览 · 电子签章暂不渲染{ofdPreview.note && ofdPreview.note !== "缓存命中" ? ` · ${ofdPreview.note}` : ""}
               </span>
               <button type="button" className="ofd-banner-btn" onClick={() => setDocMode("convert")}>另存 PDF</button>
             </>
           ) : (
-            <span className="ofd-banner-text">正在生成 PDF 预览…</span>
+            <span className="ofd-banner-text">{ofdError ? "PDF 预览生成失败" : "正在生成 PDF 预览…"}</span>
           )}
         </div>
       )}
@@ -784,7 +785,7 @@ export default function Reader() {
                          setActiveHit={setActiveHit} stepHit={stepHit} scanned={!!scanned} runOcr={runOcr}
                          ocrTask={ocrTask} ocrDone={ocrDone} searchInputRef={searchInputRef}
                          cancelOcr={cancelOcr}
-                         toc={{
+                         toc={isOfd ? undefined : {
                            saved: readerView[file.id]?.aiOutline,
                            busy: tocBusy, progress: tocProgress, progressKnown: tocKnown,
                            cancelling: tocCancelling, error: tocError, taskId: tocTaskId,
@@ -822,11 +823,12 @@ export default function Reader() {
                 </div>
               ) : isOfd && !ofdPreview ? (
                 <div className="ofd-note ofd-preview-note">
-                  <p>正在生成 PDF 预览（版式级转换，缓存后秒开）…</p>
+                  <p>{ofdError ? "无法生成 PDF 预览" : "正在生成 PDF 预览…"}</p>
                   {ofdTask && ofdTask.status !== "submitting" && (
                     <SwordProgress value={ofdTask.progress} unknown={ofdTask.progressKnown === false} label="OFD 预览转换" />
                   )}
                   {ofdError && <p className="wf-error" role="alert">{ofdError}</p>}
+                  {ofdError && <button type="button" className="btn" onClick={() => setOfdAttempt((n) => n + 1)}>重试预览</button>}
                 </div>
               ) : (
                 <div className="ofd-note">载入中…</div>
@@ -880,7 +882,7 @@ export default function Reader() {
         <button type="button" className="sb-btn sb-quiet" onClick={() => setContinuous((c) => !c)} aria-pressed={continuous} title="浏览模式">
           {continuous ? "连续" : "单页"}
         </button>
-        <button type="button" className="sb-btn sb-quiet" onClick={() => setViewRotate((r) => (r + 90) % 360)} title="视图旋转（不影响文件）">⟳</button>
+        <button type="button" className="sb-btn sb-quiet" onClick={() => setViewRotate((r) => (r + 90) % 360)} aria-label="视图旋转" title="视图旋转（不影响文件）"><Icon name="rotate" size={16} /></button>
       </footer>
 
       {/* 全屏预览 / 放映覆盖层（v0.2）：复用当前 doc，退出时回到离开时的页 */}
@@ -1052,7 +1054,12 @@ function SidePanel({
                   </div>
                 )}
                 {!searching && hits && hits.length === 0 && (
-                  scanned ? (
+                  scanned && file.kind === "ofd" ? (
+                    <div className="scan-guide plain">
+                      <p>此 OFD 预览没有可查找的文字。</p>
+                      <p className="scan-guide-sub">可先另存 PDF，再识别文字。</p>
+                    </div>
+                  ) : scanned ? (
                     <div className="scan-guide">
                       <h3>这页是扫描图片</h3>
                       <p>{(info?.text_pages_sampled || 0) > 0 ? "当前页没有可查找的文字层。" : "当前 PDF 没有可查找的文字层。"}</p>

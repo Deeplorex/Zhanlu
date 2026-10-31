@@ -85,7 +85,7 @@ export default function App() {
   const [tabs, setTabs] = useState<FileEntry[]>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(READER_TABS_KEY) || "[]");
-      return Array.isArray(saved) ? saved.filter((f) => f && f.id && f.kind === "pdf") : [];
+      return Array.isArray(saved) ? saved.filter((f) => f && f.id && (f.kind === "pdf" || f.kind === "ofd")) : [];
     } catch {
       return [];
     }
@@ -184,8 +184,9 @@ export default function App() {
   useEffect(() => {
     if (!pendingOpen || !files.length) return;
     const f = files.find((x) => x.id === pendingOpen);
-    if (f && f.kind === "pdf") {
+    if (f && (f.kind === "pdf" || f.kind === "ofd")) {
       setCurrent(f);
+      try { localStorage.setItem("zhanlu.current", f.id); } catch { /* ignore */ }
       setTabs((old) => (old.some((x) => x.id === f.id) ? old : [...old, f]));
       setPendingOpen(null);
     }
@@ -200,13 +201,13 @@ export default function App() {
 
   // R02：重启后恢复上次打开的文档（标签已持久化，这里补 current）
   useEffect(() => {
-    if (current || !tabs.length || !files.length) return;
+    if (pendingOpen || current || !tabs.length || !files.length) return;
     let savedId: string | null = null;
     try { savedId = localStorage.getItem("zhanlu.current"); } catch { /* ignore */ }
     const target = tabs.find((t) => t.id === savedId) || tabs.at(-1);
     if (target && files.some((f) => f.id === target.id)) setCurrent(target);
     else if (target && !files.some((f) => f.id === target.id)) setTabs((old) => old.filter((t) => t.id !== target.id));
-  }, [current, tabs, files]);
+  }, [current, tabs, files, pendingOpen]);
 
   const startTask = useCallback((kind: TaskKind, selected: FileEntry[]) => {
     const tab = newTaskTab(kind, selected);
@@ -325,7 +326,7 @@ export default function App() {
   };
 
   // 气泡与 Chat 的避让：阅读内转换面板展开时移到面板左侧（Figma 61/66）
-  const convertOpen = route === "reader" && docMode === "convert" && current?.kind === "pdf";
+  const convertOpen = route === "reader" && docMode === "convert" && (current?.kind === "pdf" || current?.kind === "ofd");
 
   return (
     <div className="app" data-route={route} data-convert-open={convertOpen ? "1" : "0"}>

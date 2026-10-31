@@ -4,12 +4,15 @@ import SaveLocationSelect, { type SaveMode } from "../../shared/SaveLocationSele
 import { useJob } from "../../shared/workflow";
 import SwordProgress, { swordRunningText } from "../../shared/SwordProgress";
 import type { FileEntry } from "../../shared/types";
+import Icon from "../../shared/Icon";
+import { AppCtx } from "../../app/AppContext";
 
 /** OFD 专属右栏（v0.2 M3）：另存为 PDF——保存位置三选、文件名、交付核对，与阅读内转换右栏同规格。 */
 export default function ReaderOfdPanel({ file, refreshFiles }: {
   file: FileEntry;
   refreshFiles: () => Promise<void>;
 }) {
+  const { openFile, toast } = React.useContext(AppCtx);
   const job = useJob("convert_ofd");
   const [name, setName] = useState(() => file.name.replace(/\.ofd$/i, "") + "-转换");
   const [saveMode, setSaveMode] = useState<SaveMode>("default");
@@ -46,10 +49,13 @@ export default function ReaderOfdPanel({ file, refreshFiles }: {
         {finished ? (
           <div className="convert-done" role="status">
             <h3>已另存 PDF</h3>
+            <p title={finished.path}>{finished.name}</p>
+            {finished.path && <p className="note">{finished.path}</p>}
             <p className="note" title={note}>{note || "版式级转换完成"}</p>
             <div className="pages-save-actions">
-              <button type="button" className="btn" onClick={() => openPath({ id: finished.id }).catch(() => {})}>打开结果位置</button>
-              <button type="button" className="btn primary" onClick={again}>再次另存</button>
+              <button type="button" className="btn" onClick={() => openPath({ id: finished.id }).catch((e) => toast(`无法打开位置：${(e as Error).message}`, true))}>打开结果位置</button>
+              <button type="button" className="btn primary" onClick={() => openFile(finished)}>打开阅读</button>
+              <button type="button" className="btn" onClick={again}>再次另存</button>
             </div>
           </div>
         ) : job.busy ? (
@@ -65,7 +71,8 @@ export default function ReaderOfdPanel({ file, refreshFiles }: {
         ) : (
           <>
             <div className="convert-fixed" role="status">
-              <strong>PDF (.pdf) · 版式级转换</strong>
+              <strong><Icon name="file" /> PDF (.pdf)</strong>
+              <p className="note">沿用当前预览，电子签章暂不渲染；请核对版式。</p>
             </div>
 
             <div className="cfield">

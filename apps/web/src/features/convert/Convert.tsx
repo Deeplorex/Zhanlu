@@ -8,18 +8,19 @@ import SaveLocationSelect, { type SaveMode } from "../../shared/SaveLocationSele
 import type { FileEntry } from "../../shared/types";
 import DropZone from "../../shared/components/DropZone";
 import SwordProgress, { swordPct } from "../../shared/SwordProgress";
+import Icon, { type IconName } from "../../shared/Icon";
 
 type Target = "png" | "jpg" | "txt" | "md" | "docx" | "xlsx" | "csv" | "pptx";
 
-const FORMAT_CARDS: { id: Target; label: string; sub: string }[] = [
-  { id: "png", label: "PNG 图片", sub: "每页一张，适合分享" },
-  { id: "jpg", label: "JPG 图片", sub: "体积较小" },
-  { id: "txt", label: "可提取文本", sub: "需要 PDF 含文字层" },
-  { id: "md", label: "Markdown", sub: "标题与列表按层级转换" },
-  { id: "docx", label: "Word 文档", sub: "文字按页整理 · 基础版" },
-  { id: "xlsx", label: "Excel 表格", sub: "提取检测到的表格" },
-  { id: "csv", label: "CSV 表格", sub: "提取检测到的表格" },
-  { id: "pptx", label: "PPT 演示", sub: "每页一张幻灯片图片" },
+const FORMAT_CARDS: { id: Target; label: string; sub: string; icon: IconName }[] = [
+  { id: "png", label: "PNG 图片", sub: "每页一张", icon: "images" },
+  { id: "jpg", label: "JPEG 图片", sub: "体积较小", icon: "images" },
+  { id: "txt", label: "TXT 文本", sub: "提取文字层", icon: "text" },
+  { id: "md", label: "Markdown", sub: "基础标题与列表", icon: "markdown" },
+  { id: "docx", label: "Word 文档", sub: "基础版 · 文字流", icon: "word" },
+  { id: "xlsx", label: "Excel 表格", sub: "检测并提取表格", icon: "table" },
+  { id: "csv", label: "CSV 表格", sub: "检测并提取表格", icon: "table" },
+  { id: "pptx", label: "PPT 演示", sub: "基础版 · 页面图片", icon: "play" },
 ];
 
 /** 独立转换任务标签（Figma 36）：目标格式三卡、页码范围、输出预览与保存位置同屏。 */
@@ -52,6 +53,11 @@ export default function Convert() {
 
   const imageMode = images.length > 0 && !pdfFile;
   const busy = pdfJob.busy || imgJob.busy;
+  const chooseTarget = (next: Target) => {
+    if (next === target || busy) return;
+    pdfJob.reset();
+    setTarget(next);
+  };
   const pdfDirParam = pdfSaveMode === "source" ? "@source" : pdfSaveMode === "custom" ? pdfDir || undefined : undefined;
   const imgDirParam = imgSaveMode === "source" ? "@source" : imgSaveMode === "custom" ? imgDir || undefined : undefined;
 
@@ -169,9 +175,6 @@ export default function Convert() {
     <div className="task-pad rise">
       <p className="page-kicker">转换 / 独立任务</p>
       <h1 className="page-title">{imageMode ? "图片转 PDF" : "转换文件"}</h1>
-      <p className="page-lead">{imageMode
-        ? "缩略图序号就是 PDF 页序；先排序、删除并核对，再生成。"
-        : "从首页进入转换标签，设置格式和输出后再执行；阅读菜单只属于 PDF 标签。"}</p>
 
       <div className="task-grid">
         <section className="task-main-card">
@@ -217,7 +220,7 @@ export default function Convert() {
                   <strong title={pdfFile.name}>{pdfFile.name}</strong>
                   <small>{pdfFile.pages || "?"} 页 · 已选择</small>
                 </div>
-                <button type="button" className="merge-remove" aria-label="移除文件" onClick={() => setPdfFile(null)}>×</button>
+                <button type="button" className="merge-remove" aria-label="移除文件" disabled={busy} onClick={() => { setPdfFile(null); pdfJob.reset(); }}><Icon name="trash" size={16} /></button>
               </div>
 
               <span className="convert-label">目标格式</span>
@@ -226,18 +229,32 @@ export default function Convert() {
                   const { available, note } = targetAvail(f.id);
                   return (
                     <button type="button" key={f.id} role="radio" aria-checked={target === f.id}
-                            disabled={!available}
+                            disabled={!available || busy}
+                            tabIndex={target === f.id ? 0 : -1}
+                            onKeyDown={(e) => {
+                              const delta = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1
+                                : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+                              if (!delta || busy) return;
+                              e.preventDefault();
+                              const availableFormats = FORMAT_CARDS.filter((format) => targetAvail(format.id).available);
+                              const at = availableFormats.findIndex((format) => format.id === target);
+                              const next = availableFormats[(at + delta + availableFormats.length) % availableFormats.length];
+                              chooseTarget(next.id);
+                              e.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-format="${next.id}"]`)?.focus();
+                            }}
+                            data-format={f.id}
                             title={available ? undefined : note || "当前环境不可用"}
                             className={"fmt-card" + (target === f.id ? " on" : "")}
-                            onClick={() => setTarget(f.id)}>
-                      <strong>{f.label}</strong><small>{available ? f.sub : (note || "当前环境不可用")}</small>
+                            onClick={() => chooseTarget(f.id)}>
+                      <span className="fmt-card-title"><Icon name={f.icon} size={18} /><strong>{f.label}</strong></span>
+                      <small>{available ? f.sub : (note || "当前环境不可用")}</small>
                     </button>
                   );
                 })}
               </div>
 
               <span className="convert-label">页码范围</span>
-              <input className="input" value={pages} aria-label="页码范围" onChange={(e) => setPages(e.target.value)}
+              <input className="input" value={pages} aria-label="页码范围" disabled={busy} onChange={(e) => setPages(e.target.value)}
                      placeholder={`全部页面 · 共 ${pdfFile.pages || "?"} 页；或输入 2-5,8`} />
               {(target === "png" || target === "jpg" || target === "pptx") && (
                 <select className="input" style={{ marginTop: 8 }} value={dpi} aria-label="清晰度"
@@ -247,7 +264,6 @@ export default function Convert() {
                   <option value={300}>清晰度 · 印刷（300 DPI）</option>
                 </select>
               )}
-              <p className="task-card-note">转换在本机进行，原文件保持不变。</p>
             </>
           )}
         </section>
@@ -280,7 +296,7 @@ export default function Convert() {
             </div>
           ) : (
             <>
-              <p className="merge-estimate">{targetLabel}</p>
+              <p className="merge-estimate">{preview ? preview.summary || targetLabel : (pdfFile || imageMode ? "正在核对输出…" : "请选择文件")}</p>
               {!imageMode && (target === "png" || target === "jpg") && outCount > 0 && (
                 <div className="convert-tiles" aria-hidden="true">
                   {preview?.outputs.slice(0, 3).map((output, i) => (
@@ -288,8 +304,8 @@ export default function Convert() {
                   ))}
                 </div>
               )}
-              {previewError && <p className="wf-error">{previewError}</p>}
-              {preview && !preview.ok && preview.error && <p className="wf-error">{preview.error}</p>}
+              {previewError && <p className="wf-error" role="alert">{previewError}</p>}
+              {preview && !preview.ok && preview.error && <p className="wf-error" role="alert">{preview.error}</p>}
               {preview?.warnings?.map((w, i) => <p key={i} className="wf-warn">⚠ {w}</p>)}
 
               {imageMode ? (
@@ -314,7 +330,7 @@ export default function Convert() {
                 )}
               </div>
               {preview?.outputs?.length ? <p className="convert-preview">输出预览：{preview.outputs[0].name}{preview.outputs.length > 1 ? ` 至 ${preview.outputs[preview.outputs.length - 1].name} · 共 ${preview.outputs.length} 个` : ""} · {preview.dir}</p> : null}
-              {runError && <p className="wf-error">{runError}</p>}
+              {runError && <p className="wf-error" role="alert">{runError}</p>}
               <button type="button" className="convert-run" disabled={!preview?.ok || busy}
                       onClick={runJob}>
                 {imageMode ? "开始合成 →" : "开始转换 →"}

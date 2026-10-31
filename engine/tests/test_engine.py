@@ -81,7 +81,7 @@ def make_ofd(path: Path) -> Path:
     def page_xml(text: str) -> str:
         return (
             '<?xml version="1.0" encoding="UTF-8"?>'
-            f'<Page><Content><TextObject><TextCode>{text}</TextCode></TextObject></Content></Page>'
+            f'<Page><Content><TextObject Boundary="20 20 170 20" Size="5"><TextCode X="0" Y="5">{text}</TextCode></TextObject></Content></Page>'
         )
     bm_xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
@@ -287,6 +287,11 @@ class TestConvertOfficeTargets(unittest.TestCase):
         from pptx import Presentation
 
         self.assertEqual(len(Presentation(str(out)).slides), 2)
+        for slide in Presentation(str(out)).slides:
+            picture = slide.shapes[0]
+            self.assertAlmostEqual(picture.width / picture.height, 595 / 842, delta=0.002)
+            self.assertGreater(picture.left, 0)
+            self.assertGreaterEqual(picture.top, 0)
         with self.assertRaisesRegex(pdfops.OpError, "DPI"):
             self._run(source, {"target": "pptx", "prefix": "ppt", "dpi": 120}, 2)
 
@@ -318,6 +323,21 @@ class TestConvertOfficeTargets(unittest.TestCase):
         self.assertEqual(out.suffix, ".csv")
         self.assertIn("71,488,207.90", out.read_text(encoding="utf-8-sig"))
 
+    def test_table_after_preview_sample_can_be_exported(self):
+        """前八页没有表格不能阻止导出第九页的真实表格。"""
+        source = self.dir / "late-table.pdf"
+        writer = PdfWriter()
+        writer.append(make_pdf(self.dir / "intro.pdf", 8, text=True))
+        writer.append(make_table_pdf(self.dir / "appendix.pdf"))
+        with source.open("wb") as stream:
+            writer.write(stream)
+        for target in ("xlsx", "csv"):
+            prev = self._preview(source, {"target": target, "prefix": "late"}, 9)
+            self.assertTrue(prev["ok"])
+            self.assertIn("检测到 1 张表格", prev["summary"])
+            result = self._run(source, {"target": target, "prefix": "late"}, 9)
+            self.assertTrue(Path(result["files"][0]["path"]).exists())
+
     def test_unknown_target_message(self):
         source = make_pdf(self.dir / "bad.pdf", 1)
         with self.assertRaisesRegex(pdfops.OpError, "Markdown"):
@@ -348,6 +368,12 @@ class TestOfd(unittest.TestCase):
         reader = PdfReader(str(out))
         self.assertEqual(len(reader.pages), 2)
         self.assertIn("版式级", result["note"])
+        self.assertIn("湛卢测试第一页文本", reader.pages[0].extract_text())
+
+    def test_layout_reports_failed_objects(self):
+        with patch.object(ofd, "_draw_text", side_effect=RuntimeError("绘制失败")):
+            result = ofd.to_pdf(self.src, self.dir / "partial.pdf")
+        self.assertIn("部分文字未渲染", result["note"])
 
 
 class TestOfdTasks(unittest.TestCase):
@@ -386,7 +412,7 @@ class TestOfdTasks(unittest.TestCase):
                  patch.object(jobs.store, "set_pages"):
                 second = jobs.run_ofd_convert({"id": "ofd-src", "name": "doc2", "dir": str(self.dir)},
                                               TaskContext({"id": "ofd-task2", "outputs": [], "pending_outputs": [], "cancel": threading.Event()}))
-            self.assertIn("缓存命中", second["note"])
+            self.assertEqual(result["note"], second["note"])
 
     def test_ofd_preview_registers_internal_file(self):
         from zhanlu import jobs
@@ -411,6 +437,10 @@ class TestOfdTasks(unittest.TestCase):
             result = jobs.run_ofd_preview({"id": "ofd-src"}, self._ctx())
         self.assertIn("文字重建版", result["note"])
         self.assertTrue(Path(result["file"]["path"]).exists())
+        with patch.object(jobs.ofd, "to_pdf") as convert:
+            _, cached_note = jobs._ofd_cached_pdf(source, ctx=self._ctx())
+        convert.assert_not_called()
+        self.assertIn("文字重建版", cached_note)
 
     def test_non_ofd_rejected(self):
         from zhanlu import jobs
@@ -420,6 +450,28 @@ class TestOfdTasks(unittest.TestCase):
         with patch.object(jobs, "_entry_path", return_value=(source, entry)):
             with self.assertRaisesRegex(pdfops.OpError, "仅支持 OFD"):
                 jobs.preview_ofd_convert({"id": "pdf-src", "dir": str(self.dir)})
+
+    def test_concurrent_ofd_cache_builds_once(self):
+        from zhanlu import jobs
+        import time
+
+        source = make_ofd(self.dir / "concurrent.ofd")
+        barrier = threading.Barrier(2)
+        def convert(_source, out, **kwargs):
+            time.sleep(0.05)
+            make_pdf(out, 1, text=True)
+            return {"note": "文字重建版（测试）"}
+        def load():
+            barrier.wait()
+            return jobs._ofd_cached_pdf(source, ctx=self._ctx())
+        with tempfile.TemporaryDirectory(dir=self.dir) as cache_dir, \
+             patch.object(jobs.config, "CACHE_OFD_DIR", Path(cache_dir)), \
+             patch.object(jobs.ofd, "to_pdf", side_effect=convert) as build:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(lambda _: load(), range(2)))
+            self.assertEqual(build.call_count, 1)
+            self.assertEqual(results[0], results[1])
+            self.assertTrue(results[0][0].exists())
 
 
 class TestAiStore(unittest.TestCase):

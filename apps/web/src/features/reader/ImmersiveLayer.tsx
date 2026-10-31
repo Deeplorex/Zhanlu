@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type * as pdfjs from "pdfjs-dist";
 import { ContinuousPages, PageView } from "./PageViews";
+import Icon from "../../shared/Icon";
 
 type PDFDoc = pdfjs.PDFDocumentProxy;
 
@@ -55,11 +56,14 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
   const wake = useCallback(() => {
     setChrome(true);
     window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setChrome(false), 2600);
+    hideTimer.current = window.setTimeout(() => {
+      if (!rootRef.current?.querySelector(".immersive-top:focus-within, .immersive-bottom:focus-within")) setChrome(false);
+    }, 2600);
   }, []);
 
   // 进入即请求系统全屏；退出全屏（含 Esc 的浏览器行为）→ 关闭覆盖层并回到 Reader
   useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     rootRef.current?.focus({ preventScroll: true });
     wake();
     rootRef.current?.requestFullscreen?.().catch(() => { /* 拒绝时保持覆盖层全屏即可 */ });
@@ -69,6 +73,7 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
       document.removeEventListener("fullscreenchange", onFsChange);
       window.clearTimeout(hideTimer.current);
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, [wake]);
 
@@ -76,12 +81,24 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
+      wake();
       if (e.key === "Escape") {
         e.preventDefault();
-        // 系统全屏时交给浏览器退出全屏，fullscreenchange 统一收口
-        if (!document.fullscreenElement) onExitRef.current(pageRef.current);
+        onExitRef.current(pageRef.current);
         return;
       }
+      if (e.key === "Tab") {
+        const controls = Array.from(rootRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), select") || []);
+        const first = controls[0], last = controls[controls.length - 1];
+        const at = controls.indexOf(document.activeElement as HTMLElement);
+        if (e.shiftKey && at <= 0) {
+          e.preventDefault(); last?.focus();
+        } else if (!e.shiftKey && (at < 0 || document.activeElement === last)) {
+          e.preventDefault(); first?.focus();
+        }
+        return;
+      }
+      if ((e.target as HTMLElement).closest("button, select, input, textarea, [contenteditable=true]")) return;
       if (mode !== "slideshow") return;
       if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
@@ -97,9 +114,10 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
         goto(doc.numPages);
       }
     };
-    addEventListener("keydown", onKey);
-    return () => removeEventListener("keydown", onKey);
-  }, [doc, goto, mode]);
+    const root = rootRef.current;
+    root?.addEventListener("keydown", onKey);
+    return () => root?.removeEventListener("keydown", onKey);
+  }, [doc, goto, mode, wake]);
 
   // 放映：按窗口自适应 contain 缩放（随页与窗口变化重算）
   useEffect(() => {
@@ -109,7 +127,7 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
       if (cancelled || !rootRef.current) return;
       const v = p.getViewport({ scale: 1, rotation: (p.rotate + viewRotate) % 360 });
       const availW = rootRef.current.clientWidth - 72;
-      const availH = rootRef.current.clientHeight - 88;
+      const availH = rootRef.current.clientHeight - 112;
       setFitScale(Math.max(0.05, Math.min(availW / v.width, availH / v.height, 4)));
     }).catch(() => {});
     return () => { cancelled = true; };
@@ -124,9 +142,12 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
   // 自动播放：到最后一页自动停止
   useEffect(() => {
     if (mode !== "slideshow" || !autoplay) return;
+    if (pageRef.current >= doc.numPages) { setAutoplay(0); return; }
     const t = window.setInterval(() => {
       if (pageRef.current >= doc.numPages) { setAutoplay(0); return; }
-      goto(pageRef.current + 1);
+      const next = pageRef.current + 1;
+      goto(next);
+      if (next >= doc.numPages) setAutoplay(0);
     }, autoplay * 1000);
     return () => window.clearInterval(t);
   }, [mode, autoplay, doc, goto]);
@@ -147,7 +168,7 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
     <div className={"immersive-root" + (mode === "slideshow" ? " is-show" : " is-read") + (chrome ? "" : " chrome-hidden")}
          ref={rootRef} role="dialog" aria-modal="true" tabIndex={-1}
          aria-label={mode === "slideshow" ? `放映 · ${fileTitle}` : `全屏预览 · ${fileTitle}`}
-         onMouseMove={wake} onWheel={onWheel}>
+         onMouseMove={wake} onFocusCapture={wake} onKeyDown={(e) => e.stopPropagation()} onWheel={onWheel}>
       {mode === "read" ? (
         <div className="immersive-canvas" ref={scrollRef} tabIndex={-1}>
           {continuous ? (
@@ -169,19 +190,19 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
       <div className="immersive-top">
         <span className="immersive-title" title={fileTitle}>{fileTitle}</span>
         <span className="immersive-hint">{mode === "slideshow" ? "← → 或空格翻页 · Esc 退出" : "Esc 退出全屏预览"}</span>
-        <button type="button" className="immersive-btn" onClick={() => onExitRef.current(pageRef.current)}>退出</button>
+        <button type="button" className="immersive-btn" onClick={() => onExitRef.current(pageRef.current)}><Icon name="shrink" size={16} />退出</button>
       </div>
 
       <div className="immersive-bottom">
         {mode === "read" ? (
           <>
-            <button type="button" className="immersive-btn" onClick={() => step(-1)} disabled={page <= 1} aria-label="上一页">‹</button>
+            <button type="button" className="immersive-btn" onClick={() => step(-1)} disabled={page <= 1} aria-label="上一页"><Icon name="chevron-left" size={16} /></button>
             <span className="immersive-page">第 {page} / {total} 页</span>
-            <button type="button" className="immersive-btn" onClick={() => step(1)} disabled={page >= total} aria-label="下一页">›</button>
+            <button type="button" className="immersive-btn" onClick={() => step(1)} disabled={page >= total} aria-label="下一页"><Icon name="chevron-right" size={16} /></button>
             <span className="immersive-sep" aria-hidden="true" />
-            <button type="button" className="immersive-btn" onClick={() => setScale((s) => Math.max(0.3, Math.round((s - 0.1) * 10) / 10))} aria-label="缩小">−</button>
+            <button type="button" className="immersive-btn" onClick={() => setScale((s) => Math.max(0.3, Math.round((s - 0.1) * 10) / 10))} aria-label="缩小"><Icon name="minus" size={16} /></button>
             <button type="button" className="immersive-btn immersive-zoom" onClick={() => setScale(1)} title="恢复到 100%" aria-label={`当前 ${Math.round(scale * 100)}%，恢复到 100%`}>{Math.round(scale * 100)}%</button>
-            <button type="button" className="immersive-btn" onClick={() => setScale((s) => Math.min(4, Math.round((s + 0.1) * 10) / 10))} aria-label="放大">＋</button>
+            <button type="button" className="immersive-btn" onClick={() => setScale((s) => Math.min(4, Math.round((s + 0.1) * 10) / 10))} aria-label="放大"><Icon name="plus" size={16} /></button>
             <span className="immersive-sep" aria-hidden="true" />
             <button type="button" className="immersive-btn" onClick={() => setContinuous((c) => !c)} aria-pressed={continuous}>
               {continuous ? "连续" : "单页"}
@@ -189,9 +210,9 @@ export default function ImmersiveLayer({ doc, fileTitle, pageNum, mode, initial,
           </>
         ) : (
           <>
-            <button type="button" className="immersive-btn" onClick={() => step(-1)} disabled={page <= 1} aria-label="上一页">‹</button>
+            <button type="button" className="immersive-btn" onClick={() => step(-1)} disabled={page <= 1} aria-label="上一页"><Icon name="chevron-left" size={16} /></button>
             <span className="immersive-page">第 {page} / {total} 页</span>
-            <button type="button" className="immersive-btn" onClick={() => step(1)} disabled={page >= total} aria-label="下一页">›</button>
+            <button type="button" className="immersive-btn" onClick={() => step(1)} disabled={page >= total} aria-label="下一页"><Icon name="chevron-right" size={16} /></button>
             <span className="immersive-sep" aria-hidden="true" />
             <label className="immersive-autoplay">
               <select value={autoplay} aria-label="自动播放间隔" onChange={(e) => setAutoplay(Number(e.target.value))}>

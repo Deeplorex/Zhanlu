@@ -80,7 +80,7 @@ def _write_outline(doc, nodes, depth=0):
 
 
 def pdf_to_pptx(image_paths: list[Path], out: Path) -> Path:
-    """每个页面图片一页（16:9 全幅）——图片模式转 PPT。"""
+    """每个页面图片一页（16:9 居中等比适配），完整保留页面、不拉伸。"""
     try:
         from pptx import Presentation
         from pptx.util import Emu
@@ -95,7 +95,12 @@ def pdf_to_pptx(image_paths: list[Path], out: Path) -> Path:
     blank = prs.slide_layouts[6]
     for img in image_paths:
         slide = prs.slides.add_slide(blank)
-        slide.shapes.add_picture(str(img), 0, 0, width=prs.slide_width, height=prs.slide_height)
+        picture = slide.shapes.add_picture(str(img), 0, 0)
+        scale = min(prs.slide_width / picture.width, prs.slide_height / picture.height)
+        picture.width = round(picture.width * scale)
+        picture.height = round(picture.height * scale)
+        picture.left = (prs.slide_width - picture.width) // 2
+        picture.top = (prs.slide_height - picture.height) // 2
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
     return out

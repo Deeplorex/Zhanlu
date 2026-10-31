@@ -42,6 +42,7 @@ KIND_BY_EXT = {
     ".docx": "docx",
     ".doc": "docx",
     ".xlsx": "xlsx",
+    ".csv": "csv",
     ".xls": "xlsx",
     ".pptx": "pptx",
     ".ppt": "pptx",
