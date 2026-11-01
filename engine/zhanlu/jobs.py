@@ -805,7 +805,7 @@ def _ofd_cached_pdf(p: Path, ctx=None, progress=None, should_cancel=None) -> tup
     with p.open("rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             digest.update(chunk)
-    key = f"v2-{digest.hexdigest()}"  # 转换器修复后不复用旧版缺字缓存。
+    key = f"v4-{digest.hexdigest()}"  # 转换器或签章渲染修复后不复用旧版缓存。
     with _ofd_cache_guard:
         lock = _ofd_cache_locks.setdefault(key, threading.Lock())
     with lock:

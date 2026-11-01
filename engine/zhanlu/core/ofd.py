@@ -8,6 +8,7 @@ OFD 是 ZIP + XML：OFD.xml → DocRoot(Document.xml) → Pages/Page@BaseLoc。
 from __future__ import annotations
 
 import io
+import os
 import math
 import posixpath
 import re
@@ -245,8 +246,9 @@ def _res_base(res_el, doc_base: str) -> str:
     return _norm(posixpath.join(doc_base, loc)) if loc else doc_base
 
 
-def _parse_res(zf: zipfile.ZipFile, res_file: str, fonts: dict, images: dict, drawparams: dict) -> None:
-    """解析一个 Res XML：字体 / 多媒体（图片）/ 绘图参数。"""
+def _parse_res(zf: zipfile.ZipFile, res_file: str, fonts: dict, images: dict, drawparams: dict,
+               composites: dict | None = None) -> None:
+    """解析一个 Res XML：字体 / 多媒体（图片）/ 绘图参数 / 复合图元（印章等）。"""
     names = set(zf.namelist())
     if res_file not in names:
         return
@@ -288,6 +290,13 @@ def _parse_res(zf: zipfile.ZipFile, res_file: str, fonts: dict, images: dict, dr
                 entry[n.lower()] = child.attrib.get("Value")
         drawparams[pid] = entry
 
+    if composites is not None:
+        for unit in _find_all(root, "CompositeGraphicUnit"):
+            uid = unit.attrib.get("ID", "")
+            content = _first(unit, "Content")
+            if uid and content is not None:
+                composites[uid] = content
+
 
 def _object_ctm(el, parent_ctm) -> tuple | None:
     own = _parse_ctm(el.attrib.get("CTM"))
@@ -308,8 +317,27 @@ def _object_ctm(el, parent_ctm) -> tuple | None:
     )
 
 
-def _collect_objects(el, out: list, ctm=None, notes: set | None = None) -> None:
-    """按文档顺序收集 TextObject/PathObject/ImageObject；Group/SubForm 递归并组合 CTM。"""
+def _container_chain(el, ctm) -> tuple:
+    """容器（Group/Composite 等）的子坐标链：parent ∘ (own_ctm + Boundary 原点)。"""
+    own = _parse_ctm(el.attrib.get("CTM")) or (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+    parts = el.attrib.get("Boundary", "").split()
+    bx, by = (_f(parts[0]), _f(parts[1])) if len(parts) >= 2 else (0.0, 0.0)
+    a, b, c, d, e, f = (ctm if ctm else (1.0, 0.0, 0.0, 1.0, 0.0, 0.0))
+    inner_e, inner_f = own[4] + bx, own[5] + by
+    return (
+        a * own[0] + c * own[1],
+        b * own[0] + d * own[1],
+        a * own[2] + c * own[3],
+        b * own[2] + d * own[3],
+        a * inner_e + c * inner_f + e,
+        b * inner_e + d * inner_f + f,
+    )
+
+
+def _collect_objects(el, out: list, ctm=None, notes: set | None = None,
+                     composites: dict | None = None) -> None:
+    """按文档顺序收集 TextObject/PathObject/ImageObject；容器（Group/SubForm/
+    CompositeObject 等）递归并组合 CTM 与 Boundary 原点。"""
     for child in el:
         tag = _local(child.tag)
         if tag == "TextObject":
@@ -318,13 +346,22 @@ def _collect_objects(el, out: list, ctm=None, notes: set | None = None) -> None:
             out.append(("path", child, _object_ctm(child, ctm)))
         elif tag == "ImageObject":
             out.append(("image", child, _object_ctm(child, ctm)))
-        elif tag in ("GroupObject", "SubForm", "FormObject", "Layer"):
-            _collect_objects(child, out, _object_ctm(child, ctm), notes)
+        elif tag == "CompositeObject":
+            unit = (composites or {}).get(child.attrib.get("ResourceID", ""))
+            if unit is None:
+                if notes is not None:
+                    notes.add("复合图元缺失")
+                continue
+            _collect_objects(unit, out, _container_chain(child, ctm), notes, composites)
+        elif tag in ("GroupObject", "SubForm", "FormObject"):
+            _collect_objects(child, out, _container_chain(child, ctm), notes, composites)
+        elif tag == "Layer":
+            _collect_objects(child, out, ctm, notes, composites)
         elif tag == "Page":
-            _collect_objects(child, out, ctm, notes)
+            _collect_objects(child, out, ctm, notes, composites)
 
 
-def _page_objects(page_el, notes: set) -> list:
+def _page_objects(page_el, notes: set, composites: dict | None = None) -> list:
     """页面 → 绘制对象有序列表。Layer 排序：Background < 普通 < Foreground。"""
     layers = _find_all(page_el, "Layer")
 
@@ -334,12 +371,12 @@ def _page_objects(page_el, notes: set) -> list:
 
     objects: list = []
     for layer in sorted(layers, key=rank):
-        _collect_objects(layer, objects, None, notes)
+        _collect_objects(layer, objects, None, notes, composites)
     # 没有任何 Layer 的退化页面（对象直接挂在 Content 下）
     if not layers:
         content = _first(page_el, "Content")
         if content is not None:
-            _collect_objects(content, objects, None, notes)
+            _collect_objects(content, objects, None, notes, composites)
     return objects
 
 
@@ -690,9 +727,9 @@ def _draw_image(c, el, images: dict, zf: zipfile.ZipFile, page_h: float, ctm, K:
         return
 
     matrix = _object_matrix(el, ctm)
-    # 局部坐标：无 CTM 时图片直接占满 Boundary（毫米）；有 CTM 时为 0..1 单位方块
-    # （由 CTM 缩放到毫米，如二维码 CTM="20 0 0 20 0 0" → 20×20mm）
-    if ctm is not None:
+    # 局部坐标：对象自带 CTM 时图片占 0..1 单位方块（由 CTM 缩放到毫米，
+    # 如二维码 CTM="20 0 0 20 0 0" → 20×20mm）；无 CTM 时直接占满 Boundary。
+    if _parse_ctm(el.attrib.get("CTM")) is not None:
         lw, lh = 1.0, 1.0
     else:
         lw, lh = bw, bh
@@ -734,6 +771,7 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
     fonts: dict = {}
     images: dict = {}
     drawparams: dict = {}
+    composites: dict = {}
 
     common = _first(document, "CommonData")
     page_size = [210.0, 297.0]
@@ -751,7 +789,7 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
         for tag in ("PublicRes", "DocumentRes"):
             node = _first(common, tag)
             if node is not None and node.text:
-                _parse_res(zf, _norm(posixpath.join(doc_base, node.text.strip())), fonts, images, drawparams)
+                _parse_res(zf, _norm(posixpath.join(doc_base, node.text.strip())), fonts, images, drawparams, composites)
         # 全局模板页（TemplatePage）与文档模板
         for tag in ("TemplatePage",):
             for tp in _find_all(common, tag):
@@ -765,6 +803,7 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
 
     fontbook = _FontBook(fonts, zf)
     notes: set = set()
+    stamps_rendered = 0
     K = _PT_PER_MM
 
     def page_from_xml(file_name: str | None):
@@ -779,8 +818,38 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
     for tf in template_files:
         tpl = page_from_xml(tf)
         if tpl is not None:
-            objs = _page_objects(tpl, notes)
+            objs = _page_objects(tpl, notes, composites)
             template_objects.append(objs)
+
+    # 注释（Annotation）：电子签章等 Stamp 以 Appearance 承载视觉
+    annots_by_page: dict[int, list] = {}
+    signatures_count = 0
+    annots_node = _first(document, "Annotations")
+    if annots_node is not None and (annots_node.text or "").strip():
+        loc = _norm(posixpath.join(doc_base, annots_node.text.strip()))
+        if loc in names:
+            try:
+                ann_root = ET.fromstring(zf.read(loc))
+                ann_base = posixpath.dirname(loc)
+                for page_el in _find_all(ann_root, "Page"):
+                    idx = doc.page_ids.get(page_el.attrib.get("PageID", ""))
+                    if idx is None:
+                        continue
+                    for fl in _find_all(page_el, "FileLoc"):
+                        p2 = _norm(posixpath.join(ann_base, (fl.text or "").strip()))
+                        if p2 in names:
+                            try:
+                                annots_by_page.setdefault(idx, []).append(ET.fromstring(zf.read(p2)))
+                            except ET.ParseError:
+                                pass
+            except ET.ParseError:
+                pass
+    for n in names:
+        if n.endswith("Signatures.xml") and n in names:
+            try:
+                signatures_count += len(_find_all(ET.fromstring(zf.read(n)), "Signature"))
+            except ET.ParseError:
+                pass
 
     c = rl_canvas.Canvas(str(out))
     total = len(doc.page_files) or 1
@@ -808,23 +877,43 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
         for tobjs in template_objects:
             objects.extend(tobjs)
         if page is not None:
-            objects.extend(_page_objects(page, notes))
+            objects.extend(_page_objects(page, notes, composites))
         if page is not None:
             for child in page:  # 页面级资源（Res 引用以 BaseLoc 指向）
                 if _local(child.tag) in ("Res", "PageRes") and child.attrib.get("BaseLoc"):
-                    _parse_res(zf, _norm(posixpath.join(doc_base, child.attrib["BaseLoc"].strip())), fonts, images, drawparams)
+                    _parse_res(zf, _norm(posixpath.join(doc_base, child.attrib["BaseLoc"].strip())), fonts, images, drawparams, composites)
 
-        for kind, el, otm in objects:
-            try:
-                if kind == "text":
-                    _draw_text(c, el, fontbook, drawparams, h, otm, K, notes)
-                elif kind == "path":
-                    _draw_path(c, el, drawparams, h, otm, K)
-                elif kind == "image":
-                    _draw_image(c, el, images, zf, h, otm, K)
-            except Exception:
-                notes.add({"text": "部分文字未渲染", "path": "部分图形未渲染", "image": "部分图片未渲染"}[kind])
-                continue
+        def draw_objects(objs) -> None:
+            for kind, el, otm in objs:
+                try:
+                    if kind == "text":
+                        _draw_text(c, el, fontbook, drawparams, h, otm, K, notes)
+                    elif kind == "path":
+                        _draw_path(c, el, drawparams, h, otm, K)
+                    elif kind == "image":
+                        _draw_image(c, el, images, zf, h, otm, K)
+                except Exception:
+                    notes.add({"text": "部分文字未渲染", "path": "部分图形未渲染", "image": "部分图片未渲染"}[kind])
+                    continue
+
+        draw_objects(objects)
+
+        # 注释层（电子签章等）：绘制在页面内容之上
+        for aroot in annots_by_page.get(pg_no, []):
+            for annot in _find_all(aroot, "Annot"):
+                appear = _first(annot, "Appearance")
+                if appear is None:
+                    continue
+                parts = appear.attrib.get("Boundary", "").split()
+                if len(parts) < 2:
+                    continue
+                annot_objs: list = []
+                _collect_objects(appear, annot_objs,
+                                 (1.0, 0.0, 0.0, 1.0, _f(parts[0]), _f(parts[1])),
+                                 notes, composites)
+                if annot_objs:
+                    draw_objects(annot_objs)
+                    stamps_rendered += 1
         c.showPage()
         if progress is not None:
             progress(0.9 * (pg_no + 1) / total, f"已转换 {pg_no + 1}/{total} 页")
@@ -834,4 +923,9 @@ def _to_pdf_layout(doc: OfdDoc, out: Path, progress=None, should_cancel=None) ->
     if "竖排文字" in notes:
         skipped.append("竖排文字按横排近似")
     note = "版式级转换" + ("；" + "、".join(sorted(notes)) if notes else "")
+    if signatures_count:
+        if stamps_rendered:
+            note += f"；电子签章 {stamps_rendered} 处已渲染"
+        else:
+            note += "；电子签章暂不渲染（未提取到印章图）"
     return {"pages": len(doc.page_files), "note": note}

@@ -73,10 +73,13 @@ def make_ofd(path: Path) -> Path:
     )
     doc_xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        '<Document><Pages>'
+        '<Document><CommonData><DocumentRes>DocumentRes.xml</DocumentRes></CommonData>'
+        "<Pages>"
         '<Page ID="P1" BaseLoc="Pages/P_0/P_0.xml"/>'
         '<Page ID="P2" BaseLoc="Pages/P_1/P_1.xml"/>'
-        "</Pages></Document>"
+        "</Pages>"
+        '<Annotations>Annots/Annotations.xml</Annotations>'
+        "</Document>"
     )
     def page_xml(text: str) -> str:
         return (
@@ -88,12 +91,40 @@ def make_ofd(path: Path) -> Path:
         '<Bookmarks><Bookmark Title="第一章"><Point PageRef="P1"/></Bookmark>'
         '<Bookmark Title="第二章"><Point PageRef="P2"/></Bookmark></Bookmarks>'
     )
+    # 印章注释：Stamp → CompositeObject → 复合图元 → PNG（第一页）
+    seal_png = io.BytesIO()
+    try:
+        from PIL import Image
+
+        Image.new("RGBA", (24, 24), (180, 40, 40, 200)).save(seal_png, "PNG")
+        seal_bytes = seal_png.getvalue()
+    except ImportError:
+        seal_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64  # 结构占位（无 PIL 时仅验证链路）
+    annot_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<PageAnnot><Annot Type="Stamp" ID="9" Subtype="SignatureInFile">'
+        '<Appearance Boundary="20 20 30 30">'
+        '<CompositeObject ID="5" Boundary="0 0 30 30" ResourceID="S1"/>'
+        "</Appearance></Annot></PageAnnot>"
+    )
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("OFD.xml", ofd_xml)
         z.writestr("Doc_0/Document.xml", doc_xml)
         z.writestr("Doc_0/Pages/P_0/P_0.xml", page_xml("湛卢测试第一页文本"))
         z.writestr("Doc_0/Pages/P_1/P_1.xml", page_xml("第二页内容 Zhanlu"))
         z.writestr("Doc_0/Bookmark.xml", bm_xml)
+        z.writestr("Doc_0/DocumentRes.xml",
+                   '<Res BaseLoc="Res"><MultiMedias><MultiMedia ID="M1" Type="Image" Format="PNG">'
+                   "<MediaFile>seal.png</MediaFile></MultiMedia></MultiMedias>"
+                   '<CompositeGraphicUnits><CompositeGraphicUnit ID="S1" Width="30" Height="30">'
+                   '<Content><ImageObject ID="1" Boundary="0 0 30 30" ResourceID="M1"/></Content>'
+                   "</CompositeGraphicUnit></CompositeGraphicUnits></Res>")
+        z.writestr("Doc_0/Res/seal.png", seal_bytes)
+        z.writestr("Doc_0/Annots/Annotations.xml",
+                   '<Annotations><Page PageID="P1"><FileLoc>Page_0.xml</FileLoc></Page></Annotations>')
+        z.writestr("Doc_0/Annots/Page_0.xml", annot_xml)
+        z.writestr("Doc_0/Signs/Signatures.xml",
+                   '<Signatures><MaxSignId>1</MaxSignId><Signature ID="1" BaseLoc="Sign_0.xml"/></Signatures>')
     return path
 
 
@@ -368,7 +399,15 @@ class TestOfd(unittest.TestCase):
         reader = PdfReader(str(out))
         self.assertEqual(len(reader.pages), 2)
         self.assertIn("版式级", result["note"])
+        self.assertIn("电子签章 1 处已渲染", result["note"])
         self.assertIn("湛卢测试第一页文本", reader.pages[0].extract_text())
+        # 印章图确实写入页面资源（资源可能是间接引用）
+        page = reader.pages[0]
+        res = page.get("/Resources")
+        res = res.get_object() if res is not None else {}
+        xo = res.get("/XObject")
+        xo = xo.get_object() if xo is not None else None
+        self.assertTrue(xo, "印章图片应作为 XObject 存在")
 
     def test_layout_reports_failed_objects(self):
         with patch.object(ofd, "_draw_text", side_effect=RuntimeError("绘制失败")):
