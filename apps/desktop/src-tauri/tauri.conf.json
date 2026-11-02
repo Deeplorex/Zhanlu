@@ -21,7 +21,13 @@
       { "ext": ["ofd"], "name": "Zhanlu.OFD", "description": "OFD 版式文档", "role": "Viewer", "mimeType": "application/ofd" }
     ],
     "icon": ["icons/icon.ico", "icons/32x32.png", "icons/128x128.png"],
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/hooks.nsh"
+      }
+    },
     "resources": {
+      "../../../assets/brand/raster/pdf-document.ico": "icons/pdf-document.ico",
       "../../../engine/build/dist/zhanlu-engine": "engine/",
       "../../../apps/web/dist": "web-dist/"
     }

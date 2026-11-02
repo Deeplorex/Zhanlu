@@ -13,6 +13,7 @@
 | 标准主标 | `mark.svg`；单色透明版 `mark-ink.svg`、`mark-inverse.svg` |
 | 横版 Logo | `wordmark.svg`、`wordmark-inverse.svg`；对应 `raster/wordmark-light.png`、`raster/wordmark-dark.png` |
 | 桌面与启动器 | `raster/app-icon-{16,24,32,48,64,128,256,512,1024}.png`，以及 `raster/app-icon.ico` |
+| Windows PDF 文件 | `pdf-document.svg`；`raster/pdf-document-{16,24,32,48,64,128,256,512}.png` 与多尺寸 `raster/pdf-document.ico`。折角纸张、剑形品牌和 PDF 字样用于识别文件类型，不替换应用主标。 |
 | GitHub Social | `github-social.svg` 是可编辑源稿；上传 `raster/github-social.png`，尺寸 1280 × 640、约 50 KB |
 | 功能图标 | `../icons/*.svg` 共 26 枚；阅读、页面、转换、文件、文字、表格、全屏和放映共用同一套矢量规范 |
 
@@ -32,3 +33,7 @@ v0.2.0 Review 补齐 11 枚：`expand`、`play`、`file`、`text`、`word`、`ta
 - GitHub Social 使用提供的 PNG 作为仓库 Settings → Social preview 的上传素材；公开后检查实际分享卡片裁切与文字清晰度。
 
 此目录交付的是设计资产；桌面程序与仓库设置仍需在开发发布阶段接入。产品界面与交互以[首版设计索引](../../docs/design/mvp-v1/README.md)为准。
+
+2026-11-02：PDF 文件关联改用专用文档图标，安装资源路径为 `icons/pdf-document.ico`。NSIS 安装完成后只更新 `Zhanlu.PDF/DefaultIcon` 并通知 Windows 刷新；应用图标、OFD 图标、应用内滚动条和剑形进度保持原样。图标文字为矢量轮廓，不依赖本机字体。
+
+[Figma 可编辑文件图标](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=270-48)位于 `05 · 品牌资产`，不替换 `06` 的应用内主标。
