@@ -13,6 +13,7 @@ import Settings from "../features/settings/Settings";
 import AiChat from "../features/ai/AiChat";
 import AiLauncher from "../features/ai/AiLauncher";
 import { startNativeDropBridge } from "../shared/nativeDrag";
+import { desktopStartup } from "../shared/desktopStartup";
 
 const SCREENS: Record<string, React.ComponentType> = {
   split: SplitTask,
@@ -81,6 +82,7 @@ export default function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [engines, setEngines] = useState<any>(null);
+  const [startupReady, setStartupReady] = useState(false);
   const [current, setCurrent] = useState<FileEntry | null>(null);
   const [tabs, setTabs] = useState<FileEntry[]>(() => {
     try {
@@ -138,12 +140,39 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    getAppInfo().then(setAppInfo).catch(() => {});
-    refreshFiles();
-    refreshEngines();
+    let active = true;
+    let retry: number | undefined;
+    const initialize = async () => {
+      desktopStartup("loading");
+      try {
+        const [info, list, capabilities] = await Promise.all([
+          getAppInfo(), get<{ files: FileEntry[] }>("/api/files"), get("/api/engines"),
+        ]);
+        if (!active) return;
+        setAppInfo(info);
+        setFiles(list.files || []);
+        setEngines(capabilities);
+        setStartupReady(true);
+      } catch (error) {
+        if (!active) return;
+        desktopStartup("error", error instanceof Error ? error.message : "基础数据加载失败");
+        retry = window.setTimeout(initialize, 2000);
+      }
+    };
+    void initialize();
     const t = setInterval(refreshFiles, 10_000); // 最近文件轻量同步
-    return () => clearInterval(t);
+    return () => { active = false; clearInterval(t); clearTimeout(retry); };
   }, [refreshFiles, refreshEngines]);
+
+  // Effect 在包含基础数据的首屏提交后运行；资源与字体完成后才交还桌面启动窗口。
+  useEffect(() => {
+    if (!startupReady) return;
+    let active = true;
+    const ready = () => { void document.fonts.ready.then(() => { if (active) desktopStartup("ready"); }); };
+    if (document.readyState === "complete") ready();
+    else window.addEventListener("load", ready, { once: true });
+    return () => { active = false; window.removeEventListener("load", ready); };
+  }, [startupReady]);
 
   const openFile = useCallback((entry: FileEntry, page?: number) => {
     if (entry.kind !== "pdf" && entry.kind !== "ofd") return;

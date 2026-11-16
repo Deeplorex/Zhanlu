@@ -2,19 +2,80 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>湛卢 Zhanlu</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>湛卢 · 正在启动</title>
     <style>
-      body { margin: 0; height: 100vh; display: grid; place-items: center; background: #f4f1eb;
-             font: 14px/1.7 "Segoe UI", "Microsoft YaHei", sans-serif; color: #2b2622; }
-      .box { max-width: 420px; padding: 32px; text-align: center; }
-      h1 { font-size: 18px; }
-      p { color: #746f69; }
+      :root {
+        color-scheme: light;
+        --z-ink: #2b2622;
+        --z-canvas: #f4f1eb;
+        --z-muted: #746f69;
+        --z-accent: #9a6549;
+        --z-warm: #ece6dc;
+        --z-line: #ded9d1;
+        --z-error: #b44840;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; }
+      body {
+        background: var(--z-canvas);
+        color: var(--z-ink);
+        font: 12px/18px "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+        user-select: none;
+      }
+      .boot { display: flex; flex-direction: column; height: 100%; }
+      .artwork { display: block; width: 100%; min-height: 0; flex: 1; object-fit: contain; }
+      .loading { flex: none; height: 80px; padding: 6px 24px; }
+      #zhanlu-splash-status {
+        display: flex;
+        align-items: center;
+        height: 36px;
+        margin: 0;
+        color: var(--z-muted);
+        overflow: auto;
+        overflow-wrap: anywhere;
+        scrollbar-width: thin;
+        scrollbar-color: var(--z-line) transparent;
+      }
+      /* 与应用 SwordProgress 共用的固定剑柄、10px 剑身及品牌色。 */
+      .sword-progress { display: flex; align-items: center; min-height: 32px; width: 100%; }
+      .sword { display: inline-flex; align-items: center; flex: 1; min-width: 72px; height: 32px; }
+      .sword-pommel { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--z-accent); }
+      .sword-grip { flex: none; width: 15px; height: 8px; border-radius: 2px; background: var(--z-ink); }
+      .sword-guard { flex: none; width: 4px; height: 20px; border-radius: 2px; background: var(--z-ink); margin-right: 2px; }
+      .sword-blade { flex: 1; height: 10px; display: block; }
+      .sword-track { fill: var(--z-warm); stroke: var(--z-line); stroke-width: 1; }
+      .sword-hl { fill: var(--z-accent); opacity: .55; animation: waiting 1.8s ease-in-out infinite alternate; }
+      @keyframes waiting { from { transform: translateX(-34px); } to { transform: translateX(34px); } }
+      [data-failed="true"] #zhanlu-splash-status { color: var(--z-error); }
+      [data-failed="true"] .sword-hl { display: none; }
+      @media (prefers-reduced-motion: reduce) { .sword-hl { animation: none; } }
     </style>
   </head>
   <body>
-    <div class="box">
-      <h1>湛卢启动中…</h1>
-      <p>正在启动本机处理引擎。如果长时间停留在此页，请重启应用；引擎启动失败时会显示具体原因。</p>
-    </div>
+    <main class="boot" aria-label="湛卢正在启动" aria-busy="true">
+      <img class="artwork" src="startup.png" width="1280" height="640" alt="湛卢 PDF · 轻量、清晰、本地优先的 PDF 工作台" draggable="false" />
+      <div class="loading">
+        <p id="zhanlu-splash-status" role="status" aria-live="polite">正在启动本机引擎…</p>
+        <div class="sword-progress unknown" role="progressbar" aria-label="启动加载" aria-valuetext="进度无法估算" aria-describedby="zhanlu-splash-status">
+          <span class="sword" aria-hidden="true">
+            <i class="sword-pommel"></i><i class="sword-grip"></i><i class="sword-guard"></i>
+            <svg class="sword-blade" viewBox="0 0 100 10" preserveAspectRatio="none" focusable="false">
+              <defs><clipPath id="blade"><path d="M0 0 H94 L100 5 L94 10 H0 Z" /></clipPath></defs>
+              <path class="sword-track" d="M0 0 H94 L100 5 L94 10 H0 Z" vector-effect="non-scaling-stroke" />
+              <g clip-path="url(#blade)"><rect class="sword-hl" x="42" y="0" width="16" height="10" /></g>
+            </svg>
+          </span>
+        </div>
+      </div>
+    </main>
+    <script>
+      window.zhanluSplashStatus = (message, failed) => {
+        document.getElementById("zhanlu-splash-status").textContent = message;
+        document.body.dataset.failed = String(failed);
+        document.querySelector(".boot").setAttribute("aria-busy", String(!failed));
+        document.querySelector(".sword-progress").setAttribute("aria-valuetext", failed ? "加载失败，等待重试" : "进度无法估算");
+      };
+    </script>
   </body>
 </html>
