@@ -441,6 +441,8 @@ pub fn run() {
             .inner_size(1280.0, 860.0)
             .min_inner_size(840.0, 600.0)
             .center()
+            // 工作台就绪即最大化呈现；隐藏期间只记录标志，show() 时平台层执行 SW_MAXIMIZE
+            .maximized(true)
             .visible(false)
             .initialization_script(r#"
                 let startupResourceFailed = false;
