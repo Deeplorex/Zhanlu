@@ -149,6 +149,12 @@ def api_file_info(fid: str, q) -> dict:
             result["pages"] = info["pages"]
         result.update(info)
         result["outline"] = pdfops.outline(p)
+        # 缩略图占位尺寸：与 /thumb 同源（PDFium，含页面旋转）；只供前端占位，取不到不影响打开
+        try:
+            with _thumb_lock(fid):
+                result["page_sizes"] = pdfops.page_sizes(p)
+        except Exception:  # noqa: BLE001
+            pass
         if q.get("probe") == "text":
             stats = pdfops.text_page_stats(p, sample_limit=min(info["pages"], 6))
             result["text_pages_sampled"] = len(stats["text_pages"])

@@ -155,6 +155,25 @@ class TestPdfOps(unittest.TestCase):
         self.assertIn("第一章 审计意见 · 1", md)
         self.assertIn("  - 1.1 说明 · 2", md)
 
+    def test_page_sizes_follow_orientation_and_rotation(self):
+        """逐页尺寸与缩略图同源：竖版、横版、/Rotate 90 各自给出显示比例。"""
+        import math
+
+        from PIL import Image
+
+        writer = PdfWriter()
+        writer.add_blank_page(width=595, height=842)
+        writer.add_blank_page(width=842, height=595)
+        writer.add_blank_page(width=595, height=842).rotation = 90
+        src = self.dir / "mixed-orientation.pdf"
+        with open(src, "wb") as f:
+            writer.write(f)
+        sizes = pdfops.page_sizes(src)
+        self.assertEqual(sizes, [[595.0, 842.0], [842.0, 595.0], [842.0, 595.0]])
+        for page, (w, h) in enumerate(sizes, start=1):
+            png = Image.open(io.BytesIO(pdfops.thumb(src, page, 26)))
+            self.assertEqual(png.size, (math.ceil(w * 26 / 72), math.ceil(h * 26 / 72)))
+
     def test_merge(self):
         out = self.dir / "merged.pdf"
         pdfops.merge([{"path": self.src}, {"path": self.src, "pages": "2"}], out)
@@ -1046,6 +1065,17 @@ class TestServerApi(unittest.TestCase):
         info = self._get(f"/api/files/{uploaded['files'][0]['id']}/info?probe=text")
         self.assertTrue(info["encrypted"])
         self.assertEqual(info["outline"], [])
+        self.assertIsNone(info.get("page_sizes"))  # 加密件引擎读不到逐页尺寸，前端自行量取
+
+    def test_file_info_returns_page_sizes(self):
+        writer = PdfWriter()
+        writer.add_blank_page(width=595, height=842)
+        writer.add_blank_page(width=842, height=595)
+        output = io.BytesIO()
+        writer.write(output)
+        uploaded = self._upload("mixed-orientation.pdf", output.getvalue())
+        info = self._get(f"/api/files/{uploaded['files'][0]['id']}/info")
+        self.assertEqual(info["page_sizes"], [[595.0, 842.0], [842.0, 595.0]])
 
     def test_strict_token_required(self):
         from zhanlu import server as srv
@@ -1282,6 +1312,29 @@ class TestServerApi(unittest.TestCase):
         self.assertEqual(t["status"], "done", str(t.get("error")))
         self.assertEqual(len(PdfReader(str(dir_a / "合集.pdf")).pages), 4)
         self.assertFalse((dir_b / "合集.pdf").exists())
+
+    def test_previews_expose_source_pages_for_thumbnails(self):
+        """拆分预览给出每份的实际首末页；合并预览按引擎的页范围解析给出各输入实际纳入的第一页。"""
+        dir = TMP / "缩略图源页"
+        dir.mkdir(parents=True, exist_ok=True)
+        entries = self._register_local([make_pdf(dir / "甲.pdf", 4), make_pdf(dir / "乙.pdf", 6)])
+        ids = {e["name"]: e["id"] for e in entries}
+
+        split = self._post("/api/jobs/preview", {"kind": "split", "params": {
+            "id": ids["甲.pdf"], "mode": "ranges", "ranges": "2,4", "stem": "T"}})
+        self.assertTrue(split["ok"], str(split))
+        self.assertEqual([(o["first"], o["last"], o["pages"]) for o in split["outputs"]], [(2, 2, 1), (4, 4, 1)])
+
+        merge = self._post("/api/jobs/preview", {"kind": "merge", "params": {"items": [
+            {"id": ids["甲.pdf"], "pages": " 4,2-3 "}, {"id": ids["乙.pdf"]}, {"id": ids["乙.pdf"], "pages": "5-6"}]}})
+        self.assertTrue(merge["ok"], str(merge))
+        self.assertEqual([(i["pages"], i["first"], i["count"]) for i in merge["inputs"]],
+                         [("4,2-3", 4, 3), (None, 1, 6), ("5-6", 5, 2)])
+
+        bad = self._post("/api/jobs/preview", {"kind": "merge", "params": {"items": [
+            {"id": ids["甲.pdf"], "pages": "9"}, {"id": ids["乙.pdf"]}]}})
+        self.assertFalse(bad["ok"], str(bad))
+        self.assertIn("页码超出范围", bad["error"])
 
     def test_split_source_dir_numbers_outputs(self):
         """2026-10-30：拆分同样可选与源文件同目录；多份输出重名自动编号，不覆盖已有文件。"""

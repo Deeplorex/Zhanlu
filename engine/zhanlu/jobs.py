@@ -212,8 +212,9 @@ def _split_plan_params(params: dict):
 def preview_split(params: dict) -> dict:
     p, entry, total, plan, stem = _split_plan_params(params)
     exported = sum(seg["end"] - seg["start"] + 1 for seg in plan["segments"])
+    # first/last：该份的实际首末源页（源页预览用），前端不必再解析展示用的 range 字符串
     outs = [{"name": f"{stem}-{n}", "pages": seg["end"] - seg["start"] + 1,
-             "range": f"{seg['start']}–{seg['end']}"}
+             "range": f"{seg['start']}–{seg['end']}", "first": seg["start"], "last": seg["end"]}
             for seg, n in zip(plan["segments"], plan["names"])]
     warnings = []
     if plan["skipped"]:
@@ -274,7 +275,9 @@ def _merge_parts(params: dict):
         count = len(idx) if idx is not None else total
         if count < 1:
             raise pdfops.OpError(f"{entry['name']} 没有可合并的页")
-        parts.append({"path": p, "pages": it.get("pages"), "count": count, "entry": entry})
+        # first：按给定顺序实际纳入合并的第一页（1-based；全部页面时为 1），输入行缩略图与执行共用这一解析
+        parts.append({"path": p, "pages": it.get("pages"), "count": count, "entry": entry,
+                      "first": idx[0] + 1 if idx is not None else 1})
     return parts
 
 
@@ -286,8 +289,12 @@ def preview_merge(params: dict) -> dict:
     total = sum(pt["count"] for pt in parts)
     detail = [f"{pt['entry']['name']}（{pt['count']} 页）" for pt in parts]
     # 多文件以当前列表第一项的源目录为准
-    return _preview_result(params.get("dir"), [{"name": name, "pages": total, "order": detail}],
-                           f"1 个 PDF · 共 {total} 页", sources=[parts[0]["entry"]])
+    result = _preview_result(params.get("dir"), [{"name": name, "pages": total, "order": detail}],
+                             f"1 个 PDF · 共 {total} 页", sources=[parts[0]["entry"]])
+    # 各输入文件实际纳入合并的第一页及其对应的页范围原文，供输入行缩略图按文件 ID 对应
+    result["inputs"] = [{"id": pt["entry"]["id"], "pages": str(pt["pages"] or "").strip() or None,
+                         "first": pt["first"], "count": pt["count"]} for pt in parts]
+    return result
 
 
 def run_merge(params: dict, ctx) -> dict:

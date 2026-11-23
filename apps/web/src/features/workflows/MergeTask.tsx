@@ -8,6 +8,21 @@ import { useJob } from "../../shared/workflow";
 import SaveLocationSelect, { type SaveMode } from "../../shared/SaveLocationSelect";
 import type { FileEntry } from "../../shared/types";
 
+/** 输入行缩略图（135–136）：68×44 区域，显示该文件按页范围实际纳入合并的第一页，页图等比居中。
+ *  page 为 null＝当前范围尚未通过校验：保留该文件上一次已校验的缩略图，避免编辑过程中闪烁；
+ *  加载失败时保留区域。行以文件 ID 为 key，重排时缩略图随行移动，移除时随行卸载。 */
+function MergeThumb({ fileId, page }: { fileId: string; page: number | null }) {
+  const lastRef = useRef<number | null>(null);
+  if (page != null) lastRef.current = page;
+  const [failed, setFailed] = useState<string | null>(null);
+  const src = lastRef.current != null ? `/api/files/${fileId}/thumb?page=${lastRef.current}&dpi=26` : null;
+  return (
+    <span className={"merge-thumb" + (src && failed !== src ? "" : " empty")} aria-hidden="true">
+      {src && failed !== src && <img src={src} alt="" loading="lazy" onError={() => setFailed(src)} />}
+    </span>
+  );
+}
+
 /** 独立合并任务标签：文件行排序与逐份页范围、生成前核对。 */
 export default function MergeTask() {
   const { taskSeed, taskTabId, setTaskTabTitle, files, refreshFiles, openFile, toast } = React.useContext(AppCtx);
@@ -88,6 +103,8 @@ export default function MergeTask() {
 
   const doneFile = job.done?.status === "done" ? (job.done.result?.file as FileEntry | undefined) : undefined;
   const pct = Math.round((job.task?.progress || 0) * 100);
+  // 各输入文件按有效页范围实际纳入合并的第一页：由引擎解析并随预览返回，按文件 ID 对应，与重排后的行序无关
+  const firstByFile = new Map((job.preview?.inputs || []).map((x) => [x.id, x]));
 
   return (
     <div className="task-pad rise">
@@ -97,13 +114,18 @@ export default function MergeTask() {
         <section className="task-main-card">
           <h2>输入文件</h2>
 
-          {items.map((it, i) => (
+          {items.map((it, i) => {
+            // 只采用与当前页范围一致的校验结果：范围刚改过、尚未通过校验时传 null
+            const meta = firstByFile.get(it.file.id);
+            const first = meta && (meta.pages ?? "") === it.range.trim() ? meta.first : null;
+            return (
             <div key={it.file.id} className="merge-row"
                  draggable onDragStart={() => setDragged(i)}
                  onDragOver={(e) => e.preventDefault()}
                  onDrop={(e) => { e.preventDefault(); move(dragged, i); setDragged(null); }}
                  onDragEnd={() => setDragged(null)}>
               <div className="merge-row-main">
+                <MergeThumb fileId={it.file.id} page={first} />
                 <div className="merge-row-copy">
                   <strong title={it.file.name}>{it.file.name}</strong>
                   <small>{it.file.pages || "?"} 页 · {it.range.trim() ? `选取 ${it.range}` : "选取全部页面"}</small>
@@ -125,7 +147,8 @@ export default function MergeTask() {
                        onChange={(e) => setItems((old) => old.map((x) => x.file.id === it.file.id ? { ...x, range: e.target.value } : x))} />
               )}
             </div>
-          ))}
+            );
+          })}
 
           <button ref={addDropRef} type="button" className="merge-add" onClick={pick}
                   onDragOver={(e) => e.preventDefault()}

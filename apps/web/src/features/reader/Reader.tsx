@@ -19,6 +19,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 type PDFDoc = pdfjs.PDFDocumentProxy;
 type SideTab = "thumbs" | "bookmarks" | "search";
+/** 单页显示尺寸 [宽, 高]（pt，已含页面旋转） */
+type PageSize = [number, number];
 
 interface SearchHit { page: number; snippet: string; spans: { itemIdx: number; start: number; len: number }[] }
 
@@ -295,14 +297,15 @@ export default function Reader() {
     setPasswordPrompt(null); setPasswordProtected(false); setPasswordValue(""); setSelPopup(null); setOcrTask(null); setOcrDone(null);
     pwUpdateRef.current = null; pwCancelled.current = false;
     if (!file) return;
+    let cancelled = false;
     if (isOfd) {
-      get<FileInfo>(`/api/files/${file.id}/info`).then((r) => setInfo(r)).catch(() => {});
+      get<FileInfo>(`/api/files/${file.id}/info`).then((r) => { if (!cancelled) setInfo(r); }).catch(() => {});
       if (!viewFileId) return; // 预览转换进行中
     } else if (file.kind !== "pdf") {
       setDocErr("阅读器只支持 PDF 与 OFD。"); return;
     } else {
       get<FileInfo>(`/api/files/${file.id}/info?probe=text`).then((r) => {
-        setInfo(r);
+        if (!cancelled) setInfo(r); // 迟到的旧文档响应不得覆盖当前文档（含逐页尺寸）
       }).catch(() => {});
     }
     const task = pdfjs.getDocument({
@@ -311,7 +314,6 @@ export default function Reader() {
       cMapPacked: true,
     } as never);
     loadingRef.current = task;
-    let cancelled = false;
     task.onPassword = (update: (pw: string) => void, reason: number) => {
       if (cancelled) return;
       pwUpdateRef.current = update;
@@ -331,6 +333,36 @@ export default function Reader() {
     return () => { cancelled = true; pwCancelled.current = true; task.destroy?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file?.id, viewFileId]);
+
+  // 缩略图占位尺寸：逐页 [宽, 高]，与 /thumb 同源同比例。PDF 随 info 取回；OFD 取预览 PDF 的 info
+  const [previewSizes, setPreviewSizes] = useState<PageSize[] | null>(null);
+  useEffect(() => {
+    setPreviewSizes(null);
+    if (!isOfd || !viewFileId) return;
+    let alive = true;
+    get<FileInfo>(`/api/files/${viewFileId}/info`)
+      .then((r) => { if (alive) setPreviewSizes(r.page_sizes ?? null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isOfd, viewFileId]);
+  const engineSizes = isOfd ? previewSizes : (info?.page_sizes ?? null);
+
+  // 引擎给不出逐页尺寸时（加密 PDF 等）改由 pdf.js 量取，占位比例同样准确
+  const [pdfSizes, setPdfSizes] = useState<PageSize[] | null>(null);
+  useEffect(() => {
+    setPdfSizes(null);
+    if (!doc || engineSizes?.length === doc.numPages) return;
+    let alive = true;
+    (async () => {
+      const out: PageSize[] = [];
+      for (let i = 1; i <= doc.numPages && alive; i++) {
+        const viewport = (await doc.getPage(i)).getViewport({ scale: 1 });
+        out.push([viewport.width, viewport.height]);
+      }
+      if (alive && out.length === doc.numPages) setPdfSizes(out);
+    })().catch(() => {});
+    return () => { alive = false; };
+  }, [doc, engineSizes]);
+  const thumbSizes = engineSizes?.length ? engineSizes : pdfSizes;
 
   const jump = useCallback((p: number) => {
     if (doc && p >= 1 && p <= doc.numPages) { setPageNum(p); setJumpToken((x) => x + 1); }
@@ -668,7 +700,19 @@ export default function Reader() {
     }
   };
 
+  // 窄窗口收起左栏（129→130）：焦点回到打开它的入口；入口已不在（如图标轨道按钮随面板卸载）时退回轨道上对应面板的按钮
+  const sideTriggerRef = useRef<HTMLElement | null>(null);
+  const railRef = useRef<HTMLElement>(null);
+  const closeSidePanel = useCallback(() => {
+    setSideOpen(false);
+    setTimeout(() => {
+      const trigger = sideTriggerRef.current;
+      (trigger?.isConnected ? trigger : railRef.current?.querySelector<HTMLElement>(`[data-tab="${tab}"]`))?.focus();
+    }, 0);
+  }, [tab]);
+
   const openPanelTab = (t: SideTab) => {
+    sideTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setDocMode("reader");
     setTab(t);
     setSideOpen(true);
@@ -779,8 +823,9 @@ export default function Reader() {
         ) : (
           <>
             {!narrow || (narrow && sideOpen) ? (
-              <SidePanel file={sideFile} tab={tab} sideOpen={sideOpen} setSideOpen={setSideOpen} passwordProtected={passwordProtected}
+              <SidePanel file={sideFile} tab={tab} sideOpen={sideOpen} onClose={closeSidePanel} passwordProtected={passwordProtected}
                          narrow={narrow} overlay={narrow} doc={doc} pageNum={pageNum} jump={jump} info={info}
+                         sizes={thumbSizes}
                          query={query} setQuery={setQuery} hits={hits} searching={searching} activeHit={activeHit}
                          setActiveHit={setActiveHit} stepHit={stepHit} scanned={!!scanned} runOcr={runOcr}
                          ocrTask={ocrTask} ocrDone={ocrDone} searchInputRef={searchInputRef}
@@ -794,10 +839,10 @@ export default function Reader() {
                          openOcrResult={() => { if (ocrDone) { saveReaderView(ocrDone.id, { page: pageNum, tab: "search", query }); openFile(ocrDone, pageNum); } }}
                          appOcrAvailable={!!appInfo?.ocr_available} />
             ) : (
-              <aside className="side-rail" aria-label="侧栏导航">
-                <button type="button" className={tab === "thumbs" ? "on" : ""} aria-label="缩略图" title="缩略图" onClick={() => openPanelTab("thumbs")}><Icon name="pages" /></button>
-                <button type="button" className={tab === "bookmarks" ? "on" : ""} aria-label="目录" title="目录" onClick={() => openPanelTab("bookmarks")}><Icon name="read" /></button>
-                <button type="button" className={tab === "search" ? "on" : ""} aria-label="查找文字" title="查找文字" onClick={() => openPanelTab("search")}><Icon name="search" /></button>
+              <aside className="side-rail" aria-label="侧栏导航" ref={railRef}>
+                <button type="button" data-tab="thumbs" className={tab === "thumbs" ? "on" : ""} aria-label="缩略图" title="缩略图" onClick={() => openPanelTab("thumbs")}><Icon name="pages" /></button>
+                <button type="button" data-tab="bookmarks" className={tab === "bookmarks" ? "on" : ""} aria-label="目录" title="目录" onClick={() => openPanelTab("bookmarks")}><Icon name="read" /></button>
+                <button type="button" data-tab="search" className={tab === "search" ? "on" : ""} aria-label="查找文字" title="查找文字" onClick={() => openPanelTab("search")}><Icon name="search" /></button>
               </aside>
             )}
             <div className="canvas" ref={scrollRef} tabIndex={-1}>
@@ -966,20 +1011,23 @@ export default function Reader() {
 // ---------------- 左栏（缩略图 / 目录 / 查找） ----------------
 
 function SidePanel({
-  file, tab, sideOpen, setSideOpen, narrow, overlay, doc, pageNum, jump, info, passwordProtected,
+  file, tab, sideOpen, onClose, narrow, overlay, doc, pageNum, jump, info, sizes, passwordProtected,
   query, setQuery, hits, searching, activeHit, setActiveHit, stepHit, scanned, runOcr,
   ocrTask, ocrDone, searchInputRef, appOcrAvailable, openOcrResult, cancelOcr, toc,
 }: {
   file: FileEntry;
   tab: SideTab;
   sideOpen: boolean;
-  setSideOpen: (v: boolean) => void;
+  /** 收起左栏（窄窗口下同时把焦点交还打开它的入口） */
+  onClose: () => void;
   narrow: boolean;
   overlay: boolean;
   doc: PDFDoc | null;
   pageNum: number;
   jump: (p: number) => void;
   info: FileInfo | null;
+  /** 逐页显示尺寸，决定缩略图预览尺寸；未取到时按 A4 占位 */
+  sizes: PageSize[] | null;
   passwordProtected: boolean;
   query: string;
   setQuery: (q: string) => void;
@@ -998,28 +1046,51 @@ function SidePanel({
   cancelOcr: () => void;
   toc?: AiTocState;
 }) {
-  const cls = "reader-side" + (tab === "search" ? " side-search" : "") + (overlay ? " side-overlay" : "");
+  // 当前页缩略图不可见时只滚动左栏到它（128–130）；已可见时不动用户自己的滚动位置
+  const thumbScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (tab !== "thumbs") return;
+    const scroller = thumbScrollRef.current;
+    const current = scroller?.querySelector<HTMLElement>(".th.on");
+    if (!scroller || !current) return;
+    const box = scroller.getBoundingClientRect();
+    const rect = current.getBoundingClientRect();
+    if (rect.top < box.top) scroller.scrollTop += rect.top - box.top;
+    else if (rect.bottom > box.bottom) scroller.scrollTop += rect.bottom - box.bottom;
+  }, [tab, pageNum, sizes, doc]);
+
+  const cls = "reader-side" + (tab === "search" ? " side-search" : "") + (tab === "thumbs" ? " side-thumbs" : "") + (overlay ? " side-overlay" : "");
   return (
     <aside className={cls} aria-label="文档侧栏">
       {narrow && (
         <div className="side-head">
-          <button type="button" className="side-close" onClick={() => setSideOpen(false)} aria-label="收起侧栏">×</button>
+          <button type="button" className="side-close" onClick={onClose} aria-label="收起侧栏">×</button>
         </div>
       )}
       <div className="side-body">
         {tab === "thumbs" && (
           <>
             <p className="side-current">当前位置 · 第 {pageNum || 1} 页</p>
-            <div className="thumbs">
-              {doc && Array.from({ length: doc.numPages }, (_, i) => i + 1).map((p) => (
-                <button type="button" key={p} className={"th" + (p === pageNum ? " on" : "")} onClick={() => jump(p)}>
-                  <div className="mini">{passwordProtected
-                    ? <ProtectedThumb doc={doc} number={p} />
-                    : <img src={`/api/files/${file.id}/thumb?page=${p}&dpi=${thumbDpi(p)}`} alt="" loading="lazy" />}</div>
-                  <span className="no">{p}</span>
-                </button>
-              ))}
-              {!doc && <div className="note">等待文档打开…</div>}
+            <div className="thumbs-scroll" ref={thumbScrollRef}>
+              <div className="thumbs">
+                {doc && Array.from({ length: doc.numPages }, (_, i) => i + 1).map((p) => {
+                  // 按页面真实显示尺寸定预览大小（横版/竖版/旋转页）；尺寸未到时沿用 A4 占位，到达后更新
+                  const box = thumbBox(sizes?.[p - 1]);
+                  return (
+                    <button type="button" key={p} className={"th" + (p === pageNum ? " on" : "")}
+                            aria-label={`第 ${p} 页`} aria-current={p === pageNum ? "page" : undefined}
+                            onClick={() => jump(p)}>
+                      <div className="mini" style={box ? { width: box.width, aspectRatio: `${box.width} / ${box.height}` } : undefined}>
+                        {passwordProtected
+                          ? <ProtectedThumb doc={doc} number={p} />
+                          : <img src={`/api/files/${file.id}/thumb?page=${p}&dpi=${thumbDpi(p)}`} alt="" loading="lazy" />}
+                      </div>
+                      <span className="no" aria-hidden="true">{p}</span>
+                    </button>
+                  );
+                })}
+                {!doc && <div className="note">等待文档打开…</div>}
+              </div>
             </div>
           </>
         )}
@@ -1032,7 +1103,7 @@ function SidePanel({
                      onKeyDown={(e) => {
                        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); stepHit(1); }
                        if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); stepHit(-1); }
-                       if (e.key === "Escape") { setQuery(""); setSideOpen(false); }
+                       if (e.key === "Escape") { setQuery(""); onClose(); }
                      }} />
               {query && <button type="button" className="search-clear" aria-label="清除查找" onClick={() => { setQuery(""); searchInputRef.current?.focus(); }}>×</button>}
             </div>
@@ -1113,6 +1184,13 @@ function SidePanel({
 
 function thumbDpi(page: number): number {
   return page <= 200 ? 26 : 20;
+}
+
+/** 缩略图预览尺寸（128）：横页宽上限 160、竖页/方页 100，高上限 142，宽高等比缩放；尺寸未知时为空（按 A4 占位） */
+function thumbBox(size?: PageSize): { width: number; height: number } | null {
+  if (!size || !(size[0] > 0) || !(size[1] > 0)) return null;
+  const scale = Math.min((size[0] > size[1] ? 160 : 100) / size[0], 142 / size[1]);
+  return { width: size[0] * scale, height: size[1] * scale };
 }
 
 function ProtectedThumb({ doc, number }: { doc: PDFDoc; number: number }) {

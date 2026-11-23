@@ -4,7 +4,7 @@
 
 ## 设计稿入口
 
-- [Figma 文件：湛卢 PDF · MVP 视觉系统与核心界面](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6)
+- [Figma 文件：湛卢 PDF · MVP 视觉系统与核心界面](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK)
 - `01 · 视觉系统`：湛卢墨色、语义色、字体层级、间距与圆角变量。
 - `02 · 组件`：按钮、模式标签、文件行、任务行、来源引用、输入框、首页选文件弹窗变体。
 - `03 · 核心界面`：阅读中的页面/转换/AI、首页选文件、独立拆合、图片转 PDF 与结果页，共 12 幅。
@@ -14,12 +14,12 @@
 
 | 模式 | 进入 | 设置与预览 | 执行中 | 完成 | 失败/缺失能力 |
 | --- | --- | --- | --- | --- | --- |
-| 阅读 | 工作台打开 PDF、最近文件、多标签；[阅读工作台](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=25-2) | 缩略图、目录、连续页、页码、缩放、[全文搜索](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=25-44) | 大文件增量加载，阅读不中断 | 恢复上次页码和缩放；复制文字、打印 | 无可选文字提示 OCR；[密码错误与重试](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-245) |
-| 页面 | 首页合并选多份 PDF、拆分选一份；阅读内可带当前文档进入 | [合并排序和每份页范围](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=25-131)、[四种拆分规则及输出预览](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=25-83)、文件名、保存位置 | 独立任务页和任务进度，不强制打开阅读 | [合并完成](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=10-110)、[拆分完成](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=10-141)：打开结果新标签或定位文件 | 页码越界、少于两份文件、不可写入、同名文件冲突；保留设置供重试 |
-| 转换 | 首页先选 PDF 或一次选多张图片 | [PDF → 图片/文本](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=25-172)；[图片缩略图、拖动排序和删除](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-3)；输出格式、页数、名称和位置 | 任务队列显示页数与进度，允许取消 | 图片转 PDF 后[打开新阅读标签](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=16-66)；PDF 转图片后定位文件夹 | 混合格式、空图片列表、不可用格式、保存失败；明确原因和重试 |
-| AI | 首页先选一份 PDF；阅读中切换 AI 保留文档 | [首次使用选择本地/远程及发送范围](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-64)、[模型设置](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-209) | 摘要/问答进度；[扫描件 OCR](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-137) | [答案、来源页、继续提问](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-94)；来源点击回到阅读页 | 无模型、模型离线、无可提取文字、远程未确认、OCR 失败；阅读与其他文件处理不受影响 |
+| 阅读 | 工作台打开 PDF、最近文件、多标签；[阅读工作台](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=25-2) | 缩略图、目录、连续页、页码、缩放、[全文搜索](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=25-44) | 大文件增量加载，阅读不中断 | 恢复上次页码和缩放；复制文字、打印 | 无可选文字提示 OCR；[密码错误与重试](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-245) |
+| 页面 | 首页合并选多份 PDF、拆分选一份；阅读内可带当前文档进入 | [合并排序和每份页范围](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=25-131)、[四种拆分规则及输出预览](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=25-83)、文件名、保存位置 | 独立任务页和任务进度，不强制打开阅读 | [合并完成](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=10-110)、[拆分完成](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=10-141)：打开结果新标签或定位文件 | 页码越界、少于两份文件、不可写入、同名文件冲突；保留设置供重试 |
+| 转换 | 首页先选 PDF 或一次选多张图片 | [PDF → 图片/文本](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=25-172)；[图片缩略图、拖动排序和删除](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-3)；输出格式、页数、名称和位置 | 任务队列显示页数与进度，允许取消 | 图片转 PDF 后[打开新阅读标签](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=16-66)；PDF 转图片后定位文件夹 | 混合格式、空图片列表、不可用格式、保存失败；明确原因和重试 |
+| AI | 首页先选一份 PDF；阅读中切换 AI 保留文档 | [首次使用选择本地/远程及发送范围](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-64)、[模型设置](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-209) | 摘要/问答进度；[扫描件 OCR](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-137) | [答案、来源页、继续提问](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-94)；来源点击回到阅读页 | 无模型、模型离线、无可提取文字、远程未确认、OCR 失败；阅读与其他文件处理不受影响 |
 
-共用状态由[任务与结果](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=26-172)和[工作台](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=24-2)承载。首页四个快捷工具都先选文件；合并、拆分和转换从首页进入时无需预先打开阅读器。
+共用状态由[任务与结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=26-172)和[工作台](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=24-2)承载。首页四个快捷工具都先选文件；合并、拆分和转换从首页进入时无需预先打开阅读器。
 
 ## 执行规则
 

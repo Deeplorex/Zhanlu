@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { AppCtx } from "../../app/AppContext";
-import { openPath } from "../../shared/api";
+import { get, openPath } from "../../shared/api";
 import { useJob } from "../../shared/workflow";
 import SaveLocationSelect, { type SaveMode } from "../../shared/SaveLocationSelect";
-import type { FileEntry } from "../../shared/types";
+import type { FileEntry, FileInfo } from "../../shared/types";
 import DropZone from "../../shared/components/DropZone";
 import SwordProgress, { swordPct } from "../../shared/SwordProgress";
 
@@ -15,6 +15,13 @@ const MODE_LABELS: Record<Mode, string> = {
   every: "每 N 页一份",
   ranges: "自定义范围",
 };
+
+/** 源页预览尺寸：按页面真实比例装进 62×84 内（横页贴宽、竖页贴高），与阅读左栏同一套逐页尺寸；尺寸未知时为空 */
+function previewBox(size?: [number, number]): { width: number; height: number } | null {
+  if (!size || !(size[0] > 0) || !(size[1] > 0)) return null;
+  const scale = Math.min(62 / size[0], 84 / size[1]);
+  return { width: size[0] * scale, height: size[1] * scale };
+}
 
 /** 独立拆分任务标签（Figma 43）：源文件入口、规则、源页预览与生成前核对同屏。 */
 export default function SplitTask() {
@@ -36,6 +43,17 @@ export default function SplitTask() {
       setStem(taskSeed.files[0].name.replace(/\.pdf$/i, ""));
     }
   }, [taskSeed?.key]);
+
+  // 源页预览的逐页尺寸：与缩略图同源同比例，横版/竖版页都按真实比例显示；换文件后只采用当前文件的结果
+  const [pageSizes, setPageSizes] = useState<[number, number][] | null>(null);
+  useEffect(() => {
+    setPageSizes(null);
+    if (!file) return;
+    let alive = true;
+    get<FileInfo>(`/api/files/${file.id}/info`)
+      .then((r) => { if (alive) setPageSizes(r.page_sizes ?? null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [file?.id]);
 
   useEffect(() => {
     if (!file) return;
@@ -136,19 +154,29 @@ export default function SplitTask() {
               <span className="convert-label">源页预览</span>
               <div className="split-preview-row">
                 {(job.preview?.outputs || []).slice(0, 2).map((o, i) => {
-                  const first = Number(String(o.range || "").split(/[-–,，]/)[0]) || i * 8 + 1;
+                  // 源页取自当前拆分计划：该份的实际首页与末页由引擎给出；旧引擎缺字段时退回解析展示用的 range 字符串
+                  const first = o.first ?? (Number(String(o.range || "").split(/[-–,，]/)[0]) || 1);
+                  const last = o.last ?? first + (o.pages || 1) - 1;
                   const shown = Math.min(3, o.pages || 0);
                   return (
                     <div className="split-preview-card" key={i}>
                       <p className="split-preview-head">文件 {i + 1} · {o.range || `共 ${o.pages ?? "?"} 页`}</p>
                       <div className="split-thumbs">
-                        {Array.from({ length: shown }, (_, k) => (
-                          <figure key={k}>
-                            <img src={`/api/files/${file.id}/thumb?page=${first + k}&dpi=26`} alt="" loading="lazy" />
-                            <figcaption>{first + k}</figcaption>
-                          </figure>
-                        ))}
-                        {(o.pages || 0) > 3 && <span className="split-more">… 第 {first + (o.pages || 0) - 1} 页</span>}
+                        {Array.from({ length: shown }, (_, k) => {
+                          // 按该页真实比例给出页图尺寸（加载前即占位）；取不到尺寸时沿用 62×84 占位并 contain
+                          const page = first + k;
+                          const box = previewBox(pageSizes?.[page - 1]);
+                          return (
+                            <figure key={k}>
+                              <span className="split-slot">
+                                <img src={`/api/files/${file.id}/thumb?page=${page}&dpi=26`} alt="" loading="lazy"
+                                     style={box ? { width: box.width, height: box.height } : undefined} />
+                              </span>
+                              <figcaption>{page}</figcaption>
+                            </figure>
+                          );
+                        })}
+                        {(o.pages || 0) > shown && <span className="split-more">… 第 {last} 页</span>}
                       </div>
                     </div>
                   );

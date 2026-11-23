@@ -6,8 +6,19 @@ import type { FileEntry } from "../../shared/types";
 
 interface PageItem { page: number; rotate: number }
 
+/** 归一化到 0/90/180/270（左转累计会出现负角度） */
+function rotateDeg(rotate: number): number {
+  return ((rotate % 360) + 360) % 360;
+}
+
+/** 待应用旋转的可读方向（131：页码旁的「右转 90°」）；未旋转时为空 */
+function rotateLabel(rotate: number): string {
+  const deg = rotateDeg(rotate);
+  return deg === 90 ? "右转 90°" : deg === 180 ? "旋转 180°" : deg === 270 ? "左转 90°" : "";
+}
+
 /**
- * 页面模式：整页多选网格（Figma 42）。
+ * 页面模式：整页多选网格（Figma 42 · 131–132）。
  * 就地上移/下移、左右旋转、删除；待应用变更同屏；另存为新 PDF，原文件不变。
  */
 export default function PagesGrid({ file, total }: { file: FileEntry; total: number }) {
@@ -130,33 +141,38 @@ export default function PagesGrid({ file, total }: { file: FileEntry; total: num
           </div>
         )}
 
-        <div className="pgrid pages-grid" role="listbox" aria-multiselectable="true" aria-label="页面网格" onKeyDown={onGridKey}>
-          {plan.map((p, idx) => (
-            <div key={`${p.page}-${idx}`}
-                 className={"pg" + (sel.has(idx) ? " on" : "")}
-                 data-idx={idx}
-                 tabIndex={0}
-                 role="option"
-                 aria-selected={sel.has(idx)}
-                 aria-label={`第 ${p.page} 页${p.rotate ? `，旋转 ${p.rotate}°` : ""}`}
-                 draggable
-                 onDragStart={() => setDragged(idx)}
-                 onDragOver={(e) => e.preventDefault()}
-                 onDrop={(e) => { e.preventDefault(); if (dragged != null && dragged !== idx) {
-                   setPlan((old) => { const n = [...old]; n.splice(idx, 0, ...n.splice(dragged, 1)); return n; });
-                   setSel(new Set());
-                 } setDragged(null); }}
-                 onDragEnd={() => setDragged(null)}
-                 onClick={() => toggle(idx)}
-                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggle(idx); } }}>
-              <span className="box">
-                {sel.has(idx) && <span className="check" aria-hidden="true">✓</span>}
-                <img src={`/api/files/${file.id}/thumb?page=${p.page}&dpi=26`} alt="" loading="lazy"
-                     style={p.rotate % 360 !== 0 ? { transform: `rotate(${p.rotate}deg)` } : undefined} />
-              </span>
-              <span className="no">{idx + 1}<small>{p.page !== idx + 1 ? `原${p.page}` : ""}</small></span>
-            </div>
-          ))}
+        <div className="pages-grid" role="listbox" aria-multiselectable="true" aria-label="页面网格" onKeyDown={onGridKey}>
+          {plan.map((p, idx) => {
+            const deg = rotateDeg(p.rotate);
+            const label = rotateLabel(p.rotate);
+            return (
+              <div key={`${p.page}-${idx}`}
+                   className={"pg" + (sel.has(idx) ? " on" : "")}
+                   data-idx={idx}
+                   tabIndex={0}
+                   role="option"
+                   aria-selected={sel.has(idx)}
+                   aria-label={`第 ${p.page} 页${label ? `，${label}` : ""}`}
+                   draggable
+                   onDragStart={() => setDragged(idx)}
+                   onDragOver={(e) => e.preventDefault()}
+                   onDrop={(e) => { e.preventDefault(); if (dragged != null && dragged !== idx) {
+                     setPlan((old) => { const n = [...old]; n.splice(idx, 0, ...n.splice(dragged, 1)); return n; });
+                     setSel(new Set());
+                   } setDragged(null); }}
+                   onDragEnd={() => setDragged(null)}
+                   onClick={() => toggle(idx)}
+                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggle(idx); } }}>
+                <span className="box">
+                  {/* 缩略图取自卡片对应的原页；转 90°/270° 后外接框宽高互换，按互换后的边界适配（CSS .quarter），旋转结果不被卡片裁切 */}
+                  <img className={deg === 90 || deg === 270 ? "quarter" : undefined}
+                       src={`/api/files/${file.id}/thumb?page=${p.page}&dpi=26`} alt="" loading="lazy"
+                       style={deg ? { transform: `rotate(${deg}deg)` } : undefined} />
+                </span>
+                <span className="no">{idx + 1}{label && <small> · {label}</small>}{p.page !== idx + 1 ? <small>原{p.page}</small> : ""}</span>
+              </div>
+            );
+          })}
           {!plan.length && <div className="note">等待文档打开…</div>}
         </div>
 

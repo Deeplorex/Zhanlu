@@ -1,6 +1,6 @@
 # 湛卢 PDF · 品牌资产
 
-[Figma 品牌资产页](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=43-93)包含可编辑主标、横版组合、色票与最初 12 枚功能图标；后续打印、Markdown、全部清理图标补充在 `02 · 组件` 与仓库 SVG 目录。[GitHub Social 画板](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=43-225)为 1280 × 640。
+[Figma 品牌资产页](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=43-93)包含可编辑主标、横版组合、色票与最初 12 枚功能图标；后续打印、Markdown、全部清理图标补充在 `02 · 组件` 与仓库 SVG 目录。[GitHub Social 画板](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=43-225)为 1280 × 640。
 
 ## 设计含义
 
@@ -19,9 +19,9 @@
 
 v0.2.0 Review 补齐 11 枚：`expand`、`play`、`file`、`text`、`word`、`table`、`chevron-left`、`chevron-right`、`plus`、`minus`、`shrink`。已有 `rotate` 接入阅读底栏。Excel 与 CSV 共用表格图标，以文字区分格式；PPT 与放映共用演示图标。前端 `Icon.tsx` 直接读取本目录 SVG，不再另维护一份路径。
 
-2026-10-27 补充 `markdown.svg` 与 `trash.svg`：前者用于 Markdown 转换入口，后者沿用应用已有垃圾桶路径，用于任务记录“全部清理”。尺寸与位置见[88 图标规范](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=234-3275)；清理不会删除已生成文件。
+2026-10-27 补充 `markdown.svg` 与 `trash.svg`：前者用于 Markdown 转换入口，后者沿用应用已有垃圾桶路径，用于任务记录“全部清理”。尺寸与位置见[88 图标规范](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=234-3275)；清理不会删除已生成文件。
 
-2026-10-27 剑形进度设计见[89 方案比较](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=242-2445)：横向剑为进度专用衍生图形，沿用剑形特征与品牌色，正式主标 SVG 保持原规范。组件与真实进度规则见[开发交接词](../../.handoff/sword-progress-design-2026-10-27.md)。
+2026-10-27 剑形进度设计见[89 方案比较](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=242-2445)：横向剑为进度专用衍生图形，沿用剑形特征与品牌色，正式主标 SVG 保持原规范。组件与真实进度规则见[开发交接词](../../.handoff/sword-progress-design-2026-10-27.md)。
 
 ## 使用规则
 
@@ -36,4 +36,4 @@ v0.2.0 Review 补齐 11 枚：`expand`、`play`、`file`、`text`、`word`、`ta
 
 2026-11-02：PDF 文件关联改用专用文档图标，安装资源路径为 `icons/pdf-document.ico`。NSIS 安装完成后只更新 `Zhanlu.PDF/DefaultIcon` 并通知 Windows 刷新；应用图标、OFD 图标、应用内滚动条和剑形进度保持原样。图标文字为矢量轮廓，不依赖本机字体。
 
-[Figma 可编辑文件图标](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=270-48)位于 `05 · 品牌资产`，不替换 `06` 的应用内主标。
+[Figma 可编辑文件图标](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=270-48)位于 `05 · 品牌资产`，不替换 `06` 的应用内主标。

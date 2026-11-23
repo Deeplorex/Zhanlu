@@ -367,20 +367,31 @@
 .reader-side .side-head { display: flex; align-items: center; justify-content: flex-end; padding: 10px 10px 0; }
 .reader-side .side-title { font-size: 15px; font-weight: 700; color: var(--z-ink); }
 .reader-side .side-close { border: 0; background: none; font-size: 16px; cursor: pointer; color: var(--z-muted); }
-.reader-side .side-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 14px 14px; background: #fff; }
+.reader-side .side-close:focus-visible { outline: 2px solid var(--z-accent); }
+.reader-side .side-body { flex: 1; min-height: 0; margin: 0; overflow: auto; padding: 8px 14px 14px; background: #fff; }
 .reader-side.side-search .side-body { padding: 19px 17px 14px; }
 .side-body, .canvas, .ai-chat-msgs, .convert-scroll, .finder, .task-popover, .pages-card, .task-content { min-height: 0; }
-.side-current { margin: 2px 0 10px; color: var(--z-muted); font-size: 11px; }
+/* 顶部 8 px 内边距 + 5 px ＝ 画板的 y=180；行高 13.2 */
+.side-current { margin: 5px 0 0; color: var(--z-muted); font-size: 11px; line-height: 13.2px; }
 .side-note { padding: 6px 0; }
 
-.thumbs { display: grid; grid-template-columns: 1fr; gap: 14px; justify-items: center; }
-.th { width: 100px; cursor: pointer; text-align: center; border: 0; background: none; padding: 0; }
-.th .mini { width: 100%; aspect-ratio: 1 / 1.414; background: #fff; border: 1px solid var(--z-line); border-radius: 2px; overflow: hidden; display: block; }
-.th .mini img { width: 100%; height: 100%; object-fit: fill; display: block; }
-.th .mini canvas { width: 100%; height: 100%; display: block; }
-.th:hover .mini { border-color: var(--z-accent); }
-.th.on .mini { border-color: var(--z-accent); box-shadow: 0 0 0 1px var(--z-accent); }
-.th .no { font-size: 11px; color: var(--z-muted); margin-top: 5px; display: block; }
+/* 缩略图（128–130）：「当前位置」固定在顶部，列表单独纵向滚动。预览按页面真实比例定尺寸——比例由内联 width/aspect-ratio
+   逐页给出（横页宽上限 160、竖页/方页 100、高上限 142，另受左栏可用宽度限制），尺寸未到时按 A4 占位。描边用内阴影对应画板的
+   INSIDE 描边：普通 1 px 分隔色、当前 2 px 铜色，外框尺寸不随普通/当前/焦点状态变化；图片与加密件画布都 contain 填充，不拉伸。
+   右侧负外边距把滚动条放进面板右边距里（画板 x=228），内容区再让出滚动条与间隙，列表始终按面板中线居中 */
+.reader-side.side-thumbs .side-body { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 10px; }
+.reader-side.side-thumbs .side-head { position: absolute; z-index: 1; top: 6px; right: 7px; padding: 0; }
+.reader-side.side-thumbs .side-close { width: 32px; height: 32px; font-size: 20px; line-height: 24px; border-radius: 4px; }
+.reader-side.side-thumbs .side-close:hover { background: var(--z-canvas); color: var(--z-ink); }
+.thumbs-scroll { flex: 1; min-height: 0; margin: 17px -11px 0 0; padding-right: 5px; overflow-y: auto; scrollbar-gutter: stable; }
+.thumbs { display: grid; grid-template-columns: 1fr; gap: 12px; justify-items: center; }
+.th { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 100%; cursor: pointer; border: 0; background: none; padding: 0; border-radius: 2px; }
+.th .mini { position: relative; width: 100px; max-width: 100%; aspect-ratio: 1 / 1.414; background: #fff; border: 0; border-radius: 2px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--z-line); transition: box-shadow .15s; }
+.th .mini img, .th .mini canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+.th:hover .mini { box-shadow: inset 0 0 0 1px var(--z-accent); }
+.th.on .mini { box-shadow: inset 0 0 0 2px var(--z-accent); }
+.th:focus-visible { outline: 2px solid var(--z-accent); outline-offset: 2px; }
+.th .no { font-size: 11px; line-height: 13.2px; color: var(--z-muted); }
 .th.on .no { color: var(--z-accent); }
 
 .bm { font-size: 12.5px; }
@@ -461,10 +472,11 @@
 .sel-popup button:hover { background: rgba(255, 255, 255, .14); }
 
 /* 840 图标轨（45）*/
-.side-rail { width: 52px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 28px; padding-top: 22px; background: #fff; border: 1px solid var(--z-line); border-radius: 8px; }
-.side-rail button { width: 30px; height: 30px; border: 0; background: none; color: var(--z-muted); font-size: 20px; cursor: pointer; border-radius: 6px; }
-.side-rail button:hover { color: var(--z-ink); }
-.side-rail button.on { color: var(--z-accent); }
+/* 840 收起后的图标轨道（130）：44×44 按钮、圆角 8、间距 16，当前面板暖底，图标 18 px 墨色 */
+.side-rail { width: 52px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 11px 3px; background: #fff; border: 1px solid var(--z-line); border-radius: 10px; }
+.side-rail button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--z-text); cursor: pointer; }
+.side-rail button:hover { background: var(--z-canvas); }
+.side-rail button.on { background: var(--z-warm); }
 
 /* 固定底栏（34/42/45）*/
 .reader-statusbar { height: 44px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 24px; background: #fff; border-top: 1px solid var(--z-line); font-size: 12px; color: var(--z-muted); }
@@ -507,15 +519,19 @@
 .pages-sel-actions button { border: 0; background: none; color: var(--z-accent); font-size: 12px; font-weight: 500; cursor: pointer; padding: 2px 0; }
 .pages-sel-actions button:hover { text-decoration: underline; }
 .pages-sel-actions button:disabled { opacity: .4; cursor: default; text-decoration: none; }
-.pages-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; align-content: start; padding: 4px 0 14px; flex: 1; }
-.pages-grid .pg { cursor: pointer; text-align: center; border: 0; background: none; padding: 0; border-radius: 8px; }
-.pages-grid .pg .box { position: relative; aspect-ratio: 1 / 1.32; background: #fff; border: 1px solid var(--z-line); border-radius: 8px; overflow: hidden; display: grid; place-items: center; outline: none; }
-.pages-grid .pg .box img { max-width: 88%; max-height: 92%; object-fit: contain; }
-.pages-grid .pg:hover .box { border-color: var(--z-accent); }
-.pages-grid .pg.on .box { border-color: var(--z-accent); box-shadow: 0 0 0 1px var(--z-accent); }
-.pages-grid .pg .check { position: absolute; inset: 0; margin: auto; width: 100%; height: 100%; background: none; color: transparent; font-size: 0; }
-.pages-grid .pg.on .check { background: rgba(154, 101, 73, .12); }
-.pages-grid .pg .no { display: block; margin-top: 6px; font-size: 11px; color: var(--z-muted); }
+/* 页面网格（131–132）：六列（840 下四列）等尺寸卡片 155×156，列间距 41（840：42）、行间距 15；列宽不足时等比收窄。
+   卡片内＝预览区＋固定 20 px 的页码行，页码始终在同一基线；横/竖/方页在预览区等比居中，纸张另有 1 px 边界。
+   待应用 90°/270° 时用容器宽高互换约束图片（.quarter，容器查询单位），旋转后的外接框仍落在预览区内；180° 不换。
+   选中/悬停框画在卡片边界（内阴影，对应 INSIDE 描边），卡片尺寸不随状态变化 */
+.pages-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 155px)); justify-content: center; gap: 15px 41px; align-content: start; padding: 8px 0 14px; flex: 1; }
+.pages-grid .pg { display: grid; grid-template-rows: minmax(0, 1fr) 20px; gap: 3px; aspect-ratio: 155 / 156; cursor: pointer; text-align: center; border: 0; border-radius: 6px; background: #fff; padding: 7px 12.5px 6px; box-shadow: inset 0 0 0 1px var(--z-line); outline: none; }
+.pages-grid .pg:hover { box-shadow: inset 0 0 0 1px var(--z-accent); }
+.pages-grid .pg.on { box-shadow: inset 0 0 0 1px var(--z-accent); }
+.pages-grid .pg:focus-visible { outline: 2px solid var(--z-accent); outline-offset: 2px; }
+.pages-grid .pg .box { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; container-type: size; }
+.pages-grid .pg .box img { display: block; flex: none; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; outline: 1px solid var(--z-line); outline-offset: -1px; }
+.pages-grid .pg .box img.quarter { max-width: 100cqh; max-height: 100cqw; }
+.pages-grid .pg .no { font-size: 11px; line-height: 20px; color: var(--z-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pages-grid .pg.on .no { color: var(--z-accent); font-weight: 700; }
 .pages-grid .pg .no small { margin-left: 4px; color: var(--z-accent); }
 .pages-summary { display: flex; align-items: center; gap: 12px; min-height: 47px; padding: 0 14px; padding-right: 84px; background: var(--z-warm); border-radius: 8px; color: var(--z-ink); font-size: 12px; }
@@ -752,23 +768,32 @@
 .split-rule-inline .input { width: 64px; text-align: center; }
 .split-rule-ranges { margin-left: auto; color: var(--z-accent); font-size: 12px; white-space: nowrap; }
 .split-preview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
-.split-preview-card { border: 1px solid var(--z-line); border-radius: 8px; padding: 14px 16px; min-width: 0; }
-.split-preview-head { color: var(--z-accent); font-size: 12px; font-weight: 500; margin-bottom: 12px; }
+/* 源页预览卡（133–134）：内边距 10/16，标题行高 14.4，标题下 6.6 px 接缩略图组（组顶＝卡片顶＋31） */
+.split-preview-card { border: 1px solid var(--z-line); border-radius: 8px; padding: 10px 16px; min-width: 0; }
+.split-preview-head { color: var(--z-accent); font-size: 12px; font-weight: 500; line-height: 14.4px; margin-bottom: 6.6px; }
+/* 源页预览：每张源页占固定的 62×84 区域，页图按真实比例在区域内水平居中、底边对齐，页码在区域下方 4 px；
+   页图尺寸由内联 width/height 逐页给出，取不到时按 62×84 占位；contain 保证任何情况下都不拉伸。描边为内阴影（INSIDE） */
 .split-thumbs { display: flex; align-items: flex-end; gap: 12px; }
-.split-thumbs figure { display: flex; flex-direction: column; gap: 5px; margin: 0; }
-.split-thumbs img { width: 62px; height: 84px; object-fit: fill; border: 1px solid var(--z-line); border-radius: 2px; background: #fff; }
-.split-thumbs figcaption { text-align: center; font-size: 11px; color: var(--z-muted); }
-.split-more { color: var(--z-muted); font-size: 11px; padding-bottom: 18px; }
+.split-thumbs figure { display: flex; flex-direction: column; gap: 4px; margin: 0; width: 62px; }
+.split-slot { width: 62px; height: 84px; display: flex; align-items: flex-end; justify-content: center; }
+.split-thumbs img { display: block; width: 62px; height: 84px; max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: inset 0 0 0 1px var(--z-line); border-radius: 2px; background: #fff; }
+.split-thumbs figcaption { text-align: center; font-size: 11px; line-height: 13.2px; color: var(--z-muted); }
+.split-more { align-self: flex-end; color: var(--z-muted); font-size: 11px; line-height: 13.2px; }
 .split-outputs { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
 .split-output-row { display: flex; flex-direction: column; gap: 4px; background: var(--z-warm); border-radius: 8px; padding: 13px 15px; }
 .split-output-row strong { font-size: 13px; color: var(--z-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .split-output-row span { color: var(--z-accent); font-size: 11.5px; }
 
 /* 合并（35）*/
-.merge-row { background: var(--z-canvas); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+/* 输入行（135–136）：行高 65，左侧内缩 12 为 68×44 的缩略图区；缩略图右侧到文件名 12。
+   页图在区域内按真实比例等比居中（图片自身比例，max 约束），纸张边界为内侧 1 px 轮廓；无可用缩略图时保留白色占位 */
+.merge-row { background: var(--z-canvas); border-radius: 8px; padding: 10.5px 14px 10.5px 12px; margin-bottom: 10px; }
 .merge-row[draggable="true"] { cursor: grab; }
 .merge-row:active { cursor: grabbing; }
 .merge-row-main { display: flex; align-items: center; gap: 10px; }
+.merge-thumb { flex: none; width: 68px; height: 44px; margin-right: 2px; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
+.merge-thumb.empty { background: #fff; box-shadow: inset 0 0 0 1px var(--z-line); }
+.merge-thumb img { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; outline: 1px solid var(--z-line); outline-offset: -1px; border-radius: 2px; background: #fff; }
 .merge-row-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .merge-row-copy strong { font-size: 14px; font-weight: 500; color: var(--z-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .merge-row-copy small { color: var(--z-muted); font-size: 11px; }
@@ -906,11 +931,11 @@
   .settings-nav button { flex: 1; align-items: center; text-align: center; padding: 10px 8px; }
   .settings-nav button small { display: none; }
   .remote-conn { flex-direction: column; align-items: stretch; }
-  .pages-grid { grid-template-columns: repeat(3, 1fr); }
+  .pages-grid { grid-template-columns: repeat(4, minmax(0, 155px)); column-gap: 42px; } /* 132：840 下四列 */
   /* 840 转换右栏 298（Figma 66），气泡/Chat 移到面板左侧 16 */
   .convert-panel { width: 298px; }
   .fmt-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .split-preview-row { grid-template-columns: 1fr; }
+  .split-preview-row { grid-template-columns: 1fr; gap: 12px; } /* 134：840 下预览卡纵向排列 */
   .ocr-tiers { grid-template-columns: 1fr; }
   .cfg-form { grid-template-columns: 1fr; }
   /* AI 浮层与气泡（64/66）：右边距 16；转换面板展开时移到面板左侧 16 */

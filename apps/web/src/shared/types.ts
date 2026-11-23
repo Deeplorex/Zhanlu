@@ -22,6 +22,8 @@ export interface FileInfo extends FileEntry {
   outline?: OutlineNode[];
   width_pt?: number;
   height_pt?: number;
+  /** 逐页显示尺寸 [宽, 高]（pt，已含页面旋转），与缩略图同比例，供其占位；加密件没有 */
+  page_sizes?: [number, number][];
   meta?: Record<string, string>;
   text_pages_sampled?: number;
   sampled?: number;
@@ -76,6 +78,9 @@ export interface PreviewOutput {
   name: string;
   pages?: number;
   range?: string;
+  /** 拆分：该份实际的首末源页（源页预览用，引擎按拆分计划给出） */
+  first?: number;
+  last?: number;
   note?: string;
   order?: string[];
 }
@@ -91,6 +96,8 @@ export interface JobPreview {
   conflicts: string[];
   /** 与源文件同目录模式：预览名已含自动编号，重名不阻止执行 */
   numbered?: boolean;
+  /** 合并：各输入文件按页范围实际纳入合并的第一页及其页范围原文（按文件 ID 对应） */
+  inputs?: { id: string; pages: string | null; first: number; count: number }[];
 }
 
 export interface AiSource {

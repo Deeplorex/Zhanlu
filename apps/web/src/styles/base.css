@@ -217,18 +217,7 @@ select.input { appearance: none; }
 .side-tabs button.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; background: var(--glow); border-radius: 2px; }
 .side-body { flex: 1; overflow: auto; padding: 12px 10px; background: var(--panel-2); margin-top: 1px; }
 
-.thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
-.th { cursor: pointer; text-align: center; border: 0; background: none; padding: 0; }
-.th .mini {
-  width: 100%; aspect-ratio: 1 / 1.414; background: #dfe5ea; border-radius: 2px; position: relative;
-  border: 1px solid #b9c2cb; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s;
-}
-.th .mini img { width: 100%; height: 100%; object-fit: fill; display: block; }
-.th .mini canvas { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
-.th:hover .mini { border-color: var(--glow-line); }
-.th.on .mini { border-color: var(--glow); box-shadow: 0 0 0 2px rgba(111, 182, 200, 0.35), 0 0 10px rgba(111, 182, 200, 0.25); }
-.th .no { font: 10.5px var(--mono); color: var(--ink-3); margin-top: 4px; display: block; }
-.th.on .no { color: var(--glow); }
+/* 缩略图（.thumbs / .th）只由 theme.css 定义：这里原有的旧主题规则会以同特异度漏出未覆盖的属性，已移除 */
 
 .bm { font-size: 12.5px; }
 .bm .node {
@@ -268,23 +257,7 @@ select.input { appearance: none; }
 .spacer { flex: 1; }
 
 /* ── 页面整理 / 转换 / 提取 / 设置 ── */
-.pgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-content: start; }
-.pg { cursor: pointer; text-align: center; border: 0; background: none; padding: 0; }
-.pg .box {
-  position: relative; aspect-ratio: 1 / 1.414; background: #dfe5ea; border-radius: 2px;
-  border: 1px solid #b9c2cb; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
-}
-.pg .box img { width: 100%; height: 100%; object-fit: fill; display: block; }
-.pg:hover .box { border-color: var(--glow-line); }
-.pg:active .box { transform: scale(0.97); }
-.pg.on .box { border-color: var(--glow); box-shadow: 0 0 0 2px rgba(111, 182, 200, 0.35), 0 0 12px rgba(111, 182, 200, 0.25); }
-.pg .check {
-  position: absolute; top: 5px; right: 5px; width: 16px; height: 16px; border-radius: 4px;
-  background: var(--glow); color: #0b0f13; font-size: 11px; line-height: 16px; font-weight: 700; display: none; z-index: 2;
-}
-.pg.on .check { display: block; }
-.pg .no { font: 10.5px var(--mono); color: var(--ink-3); margin-top: 5px; display: block; }
-.pg.on .no { color: var(--glow); }
+/* 页面网格（.pages-grid / .pg）只由 theme.css 定义：这里原有的旧主题规则会以同特异度漏出未覆盖的属性，已移除 */
 
 .frow { display: flex; align-items: center; gap: 12px; min-height: 58px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 8px 14px; transition: border-color 0.15s; margin-bottom: 8px; }
 .frow:hover { border-color: var(--line-hi); }

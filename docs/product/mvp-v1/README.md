@@ -1,6 +1,6 @@
 # 湛卢 PDF · 首版产品定义
 
-状态：**首版产品目标与验收基线**，已整合截至 2026-10-27 的有效交接决定；**v0.2（2026-10-31 用户决定）新增：OFD 打开与预览（转 PDF 另存）、PDF → Word/Excel/CSV/PPT 基础版导出、全屏预览与放映**。Figma：[湛卢 PDF · 视觉系统与完整场景](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6)。本文件描述必须交付的产品，不代表现有程序已经完成或通过验收。
+状态：**首版产品目标与验收基线**，已整合截至 2026-10-27 的有效交接决定；**v0.2（2026-10-31 用户决定）新增：OFD 打开与预览（转 PDF 另存）、PDF → Word/Excel/CSV/PPT 基础版导出、全屏预览与放映**。Figma：[湛卢 PDF · 视觉系统与完整场景](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK)。本文件描述必须交付的产品，不代表现有程序已经完成或通过验收。
 
 ## 产品承诺
 

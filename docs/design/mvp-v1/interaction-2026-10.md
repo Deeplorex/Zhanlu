@@ -1,5 +1,7 @@
 # 湛卢 PDF 首版阅读与任务交互说明
 
+**2026-11-23 阅读左栏缩略图。** 横版、竖版与混合方向 PDF 逐页等比预览。当前页沿用铜色边框和页码，翻页后同步高亮。840 px 展开时覆盖左侧画布，收起后恢复图标轨道并保留原文位置。设计与验收见[横版缩略图开发提示词](./landscape-thumbnails-development-prompt.md)。
+
 **顶部全局操作补充：** 查找功能、任务和设置按 [124–127 开发交接词](../../../.handoff/global-actions-design-2026-10-27.md) 使用清晰的有边界按钮；查找仍是全局命令入口，任务计数来自真实运行状态，设置有当前页状态。多标签与窄窗口按可用宽度保留入口和现行标签溢出行为。本轮仅设计与文档，既有 107–123 及其他功能规则不变。
 
 **最新文案与同目录覆盖：** 精简全应用重复流程说明，保留必要输出核对、真实状态、错误、OCR 引导及远程发送确认。转换（含图片转 PDF）和合并可选择与源文件同目录；多文件使用当前列表第一项的目录，重名自动按 `文件名（1）.扩展名` 递增，不覆盖已有文件。源路径不可用或目录不可写时引导选择其他位置，不将上传副本的临时目录当作源目录。详见[设计与开发交接词](../../../.handoff/concise-ui-source-directory-design-2026-10-27.md)；本轮仅完成设计与文档。其他保存位置任务维持既有重名规则。**2026-10-30：** 拆分同样可选与源文件同目录，多份输出重名同样自动按编号递增，不覆盖已有文件。
@@ -45,9 +47,9 @@ AI 的两个入口是查找文字右侧的工具按钮与全局右下剑标气�
 
 ### 查找功能快捷入口
 
-顶部“查找功能”或 `Ctrl+K` 从任意工作区打开[初始态 56](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=120-2)，焦点立即进入输入框。空查询时分组显示可用应用命令与最近 PDF；若当前正处于 PDF 标签，先显示**当前 PDF** 操作，再显示全局命令，见[840 px 当前文档状态 58](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=123-2)。当前 PDF 的转换、页面和 AI 操作留在该文档标签；合并、拆分等明确标注“独立任务”。最近文件独立分组，已打开文件激活原标签，未打开文件建立 PDF 标签。功能搜索可匹配命令名称、说明和最近文件名，**不检索 PDF 正文**；文内查找从命令入口转到阅读左栏。
+顶部“查找功能”或 `Ctrl+K` 从任意工作区打开[初始态 56](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=120-2)，焦点立即进入输入框。空查询时分组显示可用应用命令与最近 PDF；若当前正处于 PDF 标签，先显示**当前 PDF** 操作，再显示全局命令，见[840 px 当前文档状态 58](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=123-2)。当前 PDF 的转换、页面和 AI 操作留在该文档标签；合并、拆分等明确标注“独立任务”。最近文件独立分组，已打开文件激活原标签，未打开文件建立 PDF 标签。功能搜索可匹配命令名称、说明和最近文件名，**不检索 PDF 正文**；文内查找从命令入口转到阅读左栏。
 
-[画板 48](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=75-2)是输入“转换”后的筛选示例；[画板 57](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=122-2)是无匹配状态，`Enter` 不执行任何命令，“清除输入”回到初始列表。搜索框始终可见，当前高亮行使用背景和文字共同表达；`↑/↓` 移动选中、`Enter` 执行、`Esc` 或关闭入口返回触发前工作区并恢复焦点。中文输入法组字时 `Enter` 只完成输入，不触发命令。点击遮罩外关闭的行为与 `Esc` 一致。
+[画板 48](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=75-2)是输入“转换”后的筛选示例；[画板 57](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=122-2)是无匹配状态，`Enter` 不执行任何命令，“清除输入”回到初始列表。搜索框始终可见，当前高亮行使用背景和文字共同表达；`↑/↓` 移动选中、`Enter` 执行、`Esc` 或关闭入口返回触发前工作区并恢复焦点。中文输入法组字时 `Enter` 只完成输入，不触发命令。点击遮罩外关闭的行为与 `Esc` 一致。
 
 1280 px 下弹层宽 580 px、最大高约 562 px；840 px 下仍居中且两侧留边。更小窗口或 200% 缩放时，弹层不得超出可用视口；**只让结果列表内部滚动**，标题、输入框和关闭入口保持可见，不出现整页与列表双重滚动。最多展示 8 条命令和 4 条最近文件，列表按可用空间裁切并滚动，不能因最近文件增加而无限拉长弹层。文件名过长时在一行内截断，保留完整名称供悬停或辅助技术读取。
 
@@ -55,9 +57,13 @@ AI 的两个入口是查找文字右侧的工具按钮与全局右下剑标气�
 
 ### 页面与拆分
 
+「页面」网格的卡片尺寸一致，每页预览按实际显示比例完整居中。左转或右转后按新方向重新适配，保留卡片边界、页码和选中态。页码旁标记待应用角度，取消变更恢复原方向。见 [131 · 1280 px](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=280-4700)和 [132 · 840 px](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=280-4966)。
+
 进入“页面”后直接显示整页网格。缩略图可单选、多选，选中后出现上移/下移、左右旋转、删除以及待应用变更摘要；保存为新 PDF，原文件保持不变。网格工具栏明确区分“整理当前 PDF”“拆分成多个 PDF”“合并多份 PDF”，避免把切割一页与输出多份文档混为一谈。
 
 拆分与合并在**任务标签**内完成。拆分任务保留源文件入口，规则、页范围、输出数量、每份页码、文件名和保存位置同屏核对。示例在第 3 页后拆分 24 页文档，生成第 `1–3` 页的 **3 页** 文件和第 `4–24` 页的 **21 页** 文件。页码越界或空范围禁用开始；与源文件同目录保存时重名自动追加编号，其他位置重名先提供重命名或换目录，不静默覆盖。首页直接发起拆分也进入同一任务结构，不要求先打开阅读画布。其他拆分规则和输出约束沿用[产品交互流程](../../product/mvp-v1/flows.md)。
+
+拆分的源页预览随有效分段更新，每页等比显示，纸张底边和页码对齐。合并的输入文件行等比预览实际纳入合并的第一页，改页范围后更新，排序时随文件移动。核对场景见 [133–136 与开发验收](./landscape-thumbnails-development-prompt.md)。
 
 ### 转换
 
@@ -75,26 +81,26 @@ AI Chat 始终显示当前文档和模型所在位置，与原文共享 PDF 标�
 
 ### 远程模型连接与发送授权
 
-从[模型与 AI 设置 38](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=52-8)点“添加远程模型”进入[配置 50](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=105-2)。名称用于识别；协议、服务地址、模型 ID 和 API 密钥按所选服务校验。并列字段保持等宽，完整服务地址独占一行。密钥输入时隐藏，保存后仅显示掩码；设置保存在本机，保存本身不发送 PDF 内容。保存后进入[管理与检测 51](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=106-2)；“测试连接”只验证服务与模型，不带文档文字。失败时在检测结果原位说明原因并提供重试，保留已填配置；“设为默认”不等于授权发送文档。
+从[模型与 AI 设置 38](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=52-8)点“添加远程模型”进入[配置 50](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=105-2)。名称用于识别；协议、服务地址、模型 ID 和 API 密钥按所选服务校验。并列字段保持等宽，完整服务地址独占一行。密钥输入时隐藏，保存后仅显示掩码；设置保存在本机，保存本身不发送 PDF 内容。保存后进入[管理与检测 51](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=106-2)；“测试连接”只验证服务与模型，不带文档文字。失败时在检测结果原位说明原因并提供重试，保留已填配置；“设为默认”不等于授权发送文档。
 
-在 840 px 下使用[配置 53](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=111-2)与[已保存 54](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=112-2)：分类改为横向，双列字段保持同宽，服务地址占满内容宽度，主要操作始终可见。较长服务地址在输入框内滚动，不挤窄相邻控件。
+在 840 px 下使用[配置 53](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=111-2)与[已保存 54](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=112-2)：分类改为横向，双列字段保持同宽，服务地址占满内容宽度，主要操作始终可见。较长服务地址在输入框内滚动，不挤窄相邻控件。
 
-每份 PDF 首次使用某个远程连接前展示[发送确认 52](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=108-2)，写明目标域名、模型、本次操作和**本次实际拟发送范围**。摘要为当前文档可提取的全文片段，问答为检索到的相关页文字，选区解释或翻译仅为选中文字；页码与数量由运行时计算。示例画板展示 24 页摘要，不代表所有请求都发送 24 页。取消后留在原 PDF 且不发送；换文档、换远程连接须重新确认。远程模型不能作为本地失败后的自动回退。
+每份 PDF 首次使用某个远程连接前展示[发送确认 52](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=108-2)，写明目标域名、模型、本次操作和**本次实际拟发送范围**。摘要为当前文档可提取的全文片段，问答为检索到的相关页文字，选区解释或翻译仅为选中文字；页码与数量由运行时计算。示例画板展示 24 页摘要，不代表所有请求都发送 24 页。取消后留在原 PDF 且不发送；换文档、换远程连接须重新确认。远程模型不能作为本地失败后的自动回退。
 
-[840 px 发送确认 55](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=111-120)保留同样的信息和双操作按钮，覆盖当前阅读画面；关闭后恢复同一 PDF 与 AI 侧栏。
+[840 px 发送确认 55](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=111-120)保留同样的信息和双操作按钮，覆盖当前阅读画面；关闭后恢复同一 PDF 与 AI 侧栏。
 
 ## 3. 可点击原型路线
 
 Figma 当前改版区的主路径使用同一份 24 页示例文件。共享骨架从本轮 59–67 开始；仍引用 33–58 的搜索、任务和远程确认画板时，只沿用其内容与状态，背景与入口按本轮替换：
 
-1. [首页 67](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-1377)点“打开 PDF” → [阅读 59](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-27)，底栏展示恢复第 3 页。首页气泡先引导选择 PDF，再打开其 Chat。
-2. 阅读工具栏点“查找文字” → [待定位结果 47](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=72-2)；点第 3 页结果 → [高亮定位 41](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=69-2)。
-3. 点“页面” → [多选网格 60](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-177)；点“拆分成多个 PDF” → [拆分任务 43](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=69-258)，核对 **3＋21 页**；点“开始拆分” → [任务状态 46](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=69-681)。
-4. 从文档的“转换”模式进入[阅读内转换 61](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-390)，核对 PNG 输出；面板的“扫描页先 OCR”通向[扫描页 44](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=69-461)。
-5. 在[阅读 59](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-27)点查找文字右侧“AI 阅读”或右下气泡，展开[Chat 62](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-545)；关闭、Esc 或来源返回保留文档上下文。[840 px 阅读 63](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-722)与[Chat 64](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=196-851)展示窄窗口状态。旧 37、49 的 AI 占位布局已被覆盖。
-6. 在[模型设置 38](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=52-8)点“添加远程模型” → [填写配置 50](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=105-2) → “保存配置” → [检测连接 51](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=106-2)；其隐私提示可打开[首次发送确认 52](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=108-2)示例。实际请求须从当前 PDF 的 AI 侧栏发起。
-7. 窄窗口参考[配置 53](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=111-2) → [已保存 54](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=112-2) → [发送确认 55](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=111-120)，验证字段、密钥提示与确认按钮不因宽度缩小而隐藏。
-8. 从首页顶部“查找功能” → [初始态 56](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=120-2)，选择“合并 PDF”进入合并任务，或选择最近文件进入阅读；点击输入框可走查[“转换”筛选 48](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=75-2)，继续输入无匹配词查看[无结果 57](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=122-2)。在阅读窄窗口打开[状态 58](https://www.figma.com/design/LAdU272mtZ2RG2ZnQaGKX6?node-id=123-2)检查当前 PDF 命令优先级与弹层边界。
+1. [首页 67](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-1377)点“打开 PDF” → [阅读 59](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-27)，底栏展示恢复第 3 页。首页气泡先引导选择 PDF，再打开其 Chat。
+2. 阅读工具栏点“查找文字” → [待定位结果 47](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=72-2)；点第 3 页结果 → [高亮定位 41](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-2)。
+3. 点“页面” → [多选网格 60](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-177)；点“拆分成多个 PDF” → [拆分任务 43](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-258)，核对 **3＋21 页**；点“开始拆分” → [任务状态 46](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-681)。
+4. 从文档的“转换”模式进入[阅读内转换 61](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-390)，核对 PNG 输出；面板的“扫描页先 OCR”通向[扫描页 44](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-461)。
+5. 在[阅读 59](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-27)点查找文字右侧“AI 阅读”或右下气泡，展开[Chat 62](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-545)；关闭、Esc 或来源返回保留文档上下文。[840 px 阅读 63](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-722)与[Chat 64](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=196-851)展示窄窗口状态。旧 37、49 的 AI 占位布局已被覆盖。
+6. 在[模型设置 38](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=52-8)点“添加远程模型” → [填写配置 50](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=105-2) → “保存配置” → [检测连接 51](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=106-2)；其隐私提示可打开[首次发送确认 52](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=108-2)示例。实际请求须从当前 PDF 的 AI 侧栏发起。
+7. 窄窗口参考[配置 53](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=111-2) → [已保存 54](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=112-2) → [发送确认 55](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=111-120)，验证字段、密钥提示与确认按钮不因宽度缩小而隐藏。
+8. 从首页顶部“查找功能” → [初始态 56](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=120-2)，选择“合并 PDF”进入合并任务，或选择最近文件进入阅读；点击输入框可走查[“转换”筛选 48](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=75-2)，继续输入无匹配词查看[无结果 57](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=122-2)。在阅读窄窗口打开[状态 58](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=123-2)检查当前 PDF 命令优先级与弹层边界。
 
 原型链接用于走查页面关系。输入、实际搜索、文件写入、OCR 和模型推理仍须在程序实现阶段按[发布验收](../../product/mvp-v1/acceptance.md)验证。
 

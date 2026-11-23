@@ -626,6 +626,17 @@ def render_pages(path: Path, out_dir: Path, pages: str | None = None, dpi: int =
     return outs
 
 
+def page_sizes(path: Path, password: str | None = None) -> list[list[float]]:
+    """逐页显示尺寸 [[宽, 高], …]（pt，已含页面 /Rotate），与 thumb() 的像素比例同源。"""
+    if not HAS_PDFIUM:
+        raise OpError("渲染引擎未安装")
+    doc = pdfium.PdfDocument(str(path), password=password or "")
+    try:
+        return [[round(w, 1), round(h, 1)] for w, h in (doc.get_page_size(i) for i in range(len(doc)))]
+    finally:
+        doc.close()
+
+
 def thumb(path: Path, page_1based: int, dpi: int = 60, password: str | None = None) -> bytes:
     if not HAS_PDFIUM:
         raise OpError("渲染引擎未安装")
