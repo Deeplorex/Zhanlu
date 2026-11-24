@@ -283,8 +283,15 @@ _PS_PICK_CONVERT = _PS_PICK_PDFS.replace(
     "$d.Filter = 'PDF、OFD 和图片|*.pdf;*.ofd;*.png;*.jpg;*.jpeg';",
 ).replace("$d.Title = '打开 PDF 或 OFD';", "$d.Title = '选择 PDF、OFD 或图片';")
 
+# 页面整理「从本机 PDF 插入」的导入源：单选、仅 PDF
+_PS_PICK_SOURCE = _PS_PICK_PDFS.replace(
+    "$d.Filter = 'PDF 和 OFD 文档|*.pdf;*.ofd';",
+    "$d.Filter = 'PDF 文档|*.pdf';",
+).replace("$d.Title = '打开 PDF 或 OFD';", "$d.Title = '选择要插入的 PDF';").replace(
+    "$d.Multiselect = $true;", "$d.Multiselect = $false;")
 
-def _register_picked(paths: list[str], allow_images: bool = False) -> tuple[list[dict], list[str]]:
+
+def _register_picked(paths: list[str], allow_images: bool = False, pdf_only: bool = False) -> tuple[list[dict], list[str]]:
     """把用户在原生对话框里亲自选择的路径按可信通道登记真实位置（06 改版 §2：
     与源文件同目录依赖真实源路径；HTTP 请求体从不携带路径，边界不变）。
     path+mtime+size 命中已有登记时复用，避免重复登记同一文件。"""
@@ -293,8 +300,11 @@ def _register_picked(paths: list[str], allow_images: bool = False) -> tuple[list
     for value in paths:
         try:
             p = Path(str(value)).resolve(strict=True)
-            allowed = {".pdf", ".ofd", ".png", ".jpg", ".jpeg"} if allow_images else {".pdf", ".ofd"}
+            allowed = {".pdf"} if pdf_only else (
+                {".pdf", ".ofd", ".png", ".jpg", ".jpeg"} if allow_images else {".pdf", ".ofd"})
             if not p.is_file() or p.suffix.lower() not in allowed:
+                if pdf_only:
+                    raise ValueError("请选择 PDF 文件")
                 raise ValueError("请选择 PDF、OFD 或 PNG/JPEG 图片" if allow_images else "请选择 PDF 或 OFD 文件")
             stat = p.stat()
             entry = next(
@@ -314,14 +324,22 @@ def _register_picked(paths: list[str], allow_images: bool = False) -> tuple[list
     return entries, errors
 
 
+_PICK_SCRIPTS = {
+    "pdf": (_PS_PICK_PDFS, False, False),
+    "convert": (_PS_PICK_CONVERT, True, False),
+    "source": (_PS_PICK_SOURCE, False, True),  # 页面整理的导入源：单选 PDF
+}
+
+
 def api_pick_pdfs(_q, body) -> dict:
-    """用户通过系统对话框选择文件；路径只由引擎取得并登记。"""
+    """用户通过系统对话框选择文件；路径只由引擎取得并登记。kind=source 供页面整理挑选导入 PDF。"""
     kind = body.get("kind", "pdf")
-    if kind not in ("pdf", "convert"):
+    if kind not in _PICK_SCRIPTS:
         raise ApiError(400, "不支持的文件选择类型")
+    script, allow_images, pdf_only = _PICK_SCRIPTS[kind]
     try:
         out = subprocess.run(
-            ["powershell", "-NoProfile", "-STA", "-Command", _PS_PICK_CONVERT if kind == "convert" else _PS_PICK_PDFS],
+            ["powershell", "-NoProfile", "-STA", "-Command", script],
             capture_output=True, text=True, timeout=600,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
@@ -332,8 +350,44 @@ def api_pick_pdfs(_q, body) -> dict:
     picked = [line.strip() for line in (out.stdout or "").splitlines() if line.strip()]
     if not picked:
         return {"files": [], "errors": [], "cancelled": True}
-    entries, errors = _register_picked(picked, allow_images=kind == "convert")
+    if pdf_only:
+        picked = picked[:1]
+    entries, errors = _register_picked(picked, allow_images=allow_images, pdf_only=pdf_only)
     return {"files": [_entry_out(e) for e in entries], "errors": errors, "cancelled": False}
+
+
+def api_file_import_probe(fid: str) -> dict:
+    """导入源可用性（页面整理插入弹窗）：能打开、页数、是否允许提取。文件失效时给出原因。"""
+    try:
+        p, entry = _path_of(fid)
+    except ApiError as exc:
+        return {"ok": False, "pages": None, "error": exc.message, "name": None}
+    if entry.get("kind") != "pdf":
+        return {"ok": False, "pages": None, "error": "仅支持插入 PDF 页面", "name": entry.get("name")}
+    probe = pdfops.import_probe(p)
+    if probe.get("pages") and entry.get("pages") != probe["pages"]:
+        store.set_pages(fid, probe["pages"])
+    sizes = None
+    if probe["ok"]:
+        # 逐页显示尺寸：插入空白页时沿用参考页的显示宽高（PDFium 需与缩略图共用文档锁）
+        try:
+            with _thumb_lock(fid):
+                sizes = pdfops.page_sizes(p)
+        except Exception:  # noqa: BLE001 — 取不到尺寸时前端回退到默认纸张
+            sizes = None
+    return dict(probe, name=entry.get("name"), sizes=sizes)
+
+
+def api_pages_parse(_q, body) -> dict:
+    """页面整理「从本机 PDF 插入」的页范围解析：复用引擎 parse_pages，与预览、执行同一套语法与校验。
+    pages=null 表示全部页（空范围按原顺序插入全部页）。"""
+    p, entry = _path_of(body.get("id"))
+    total = jobs._pages_of(entry, p)
+    try:
+        pages = pdfops.parse_pages(body.get("pages"), total)
+    except pdfops.OpError as exc:
+        return {"ok": False, "pages": None, "error": str(exc), "total": total}
+    return {"ok": True, "pages": None if pages is None else [i + 1 for i in pages], "total": total}
 
 
 def api_pick_folder(_q, _b) -> dict:
@@ -449,6 +503,7 @@ JSON_ROUTES: dict = {
     ("POST", "/api/jobs/run"): api_jobs_run,
     ("POST", "/api/sys/pick-folder"): api_pick_folder,
     ("POST", "/api/sys/pick-pdfs"): api_pick_pdfs,
+    ("POST", "/api/pages/parse"): api_pages_parse,
     ("POST", "/api/sys/open-path"): api_open_path,
     ("GET", "/api/ai/configs"): lambda q, b: api_ai_configs(q, None),
     ("POST", "/api/ai/configs"): api_ai_configs,
@@ -466,6 +521,7 @@ RE_FILE = re.compile(r"^/api/files/([^/]+)/?$")
 RE_FILE_INFO = re.compile(r"^/api/files/([^/]+)/info$")
 RE_FILE_RAW = re.compile(r"^/api/files/([^/]+)/raw$")
 RE_FILE_THUMB = re.compile(r"^/api/files/([^/]+)/thumb$")
+RE_FILE_IMPORT_PROBE = re.compile(r"^/api/files/([^/]+)/import-probe$")
 RE_TASK = re.compile(r"^/api/tasks/([^/]+)/(cancel|retry|clear)/?$")
 RE_TASK_GET = re.compile(r"^/api/tasks/([^/]+)/?$")
 
@@ -650,6 +706,9 @@ class Handler(BaseHTTPRequestHandler):
             m = RE_FILE_INFO.match(path)
             if m and method == "GET":
                 return self._json(api_file_info(m.group(1), q))
+            m = RE_FILE_IMPORT_PROBE.match(path)
+            if m and method == "GET":
+                return self._json(api_file_import_probe(m.group(1)))
             m = RE_TASK.match(path)
             if m and method == "POST":
                 tid, action = m.group(1), m.group(2)

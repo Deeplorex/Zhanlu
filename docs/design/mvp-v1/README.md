@@ -2,6 +2,21 @@
 
 [打开 06 · 现行交互改版](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=52-2)。这是迁移后首版开发的界面基线。`03 · 核心界面（历史参考·非开发基线）`、`04 · MVP 完整场景（历史参考·非开发基线）` 保留作历史场景参考，旧画板也已逐一标记。现行改版画板由可编辑文字与图层构成，沿用现有配色与视觉气质。设计描述目标产品，不暗示现有代码已经达到发布标准。
 
+## 2026-11-24 PDF 页面整理
+
+在当前 PDF 的「页面 → 整理当前 PDF」中插入、复制、移动、旋转和删除页面。137–168 是页面操作和另存的现行画板，131–132 继续提供尺寸与旋转预览参考。示例原型从选中第 4 页开始，分别演示插入或移动、预览结果及另存核对。见[交互说明](./interaction-2026-10.md#页面与拆分)和[开发提示词](./page-organize-development-prompt.md)。
+
+| 场景 | 1280 px | 840 px |
+| --- | --- | --- |
+| 网格和选区 | [137 选中页](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=301-5356) · [164 未选中](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=305-10703) | [138 选中页](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=301-5464) · [155 未选中](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-10952) |
+| 从本机 PDF 插入 | [139 插入](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=303-5759) · [141 结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=303-5955) · [147 另存核对](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7222) | [140 插入](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=303-5867) · [142 结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=303-6063) · [148 另存核对](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7330) |
+| 插入空白页 | [165 插入](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=305-10811) · [166 结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=305-10919) · [167 另存核对](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=305-11027) | [151 插入](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7614) · [152 结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7702) · [161 另存核对](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11480) |
+| 移动页 | [143 移动](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=303-6151) · [145 结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7026) · [149 另存核对](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7418) | [144 移动](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=303-6259) · [146 结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7134) · [150 另存核对](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7526) · [168 拖动落点](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=305-11135) |
+| 复制和删除 | 参照 840 px 状态中的反馈与操作 | [153 复制](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7790) · [154 删除](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-7878) · [156 全删禁用](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11040) · [162 复制另存](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11568) · [163 删除另存](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11656) |
+| 导入和生成状态 | 参照 840 px 状态的反馈与按钮 | [157 导入失败](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11128) · [158 生成中](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11216) · [159 生成失败](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11304) · [160 整理完成](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=304-11392) |
+
+Acrobat 用缩略图重排、复制，也支持在指定页前后插入空白页或 PDF。PDF Expert 和 macOS「预览」把插入、删除、移动集中在缩略图视图。Foxit 补充从另一份 PDF 按范围取页、按页码精确移动及批量复制。湛卢采用缩略图操作和指定插入点，提取继续走拆分的自定义范围。 [Acrobat 移动和复制](https://helpx.adobe.com/acrobat/desktop/edit-documents/organize-pages/move-pages.html) · [Acrobat 插入 PDF](https://helpx.adobe.com/acrobat/desktop/edit-documents/combine-files/insert-pdfs.html) · [PDF Expert](https://support.readdle.com/pdfexpert/en_US/managing-files-and-folders/add-delete-and-rearrange-pdf-pages) · [macOS 预览](https://support.apple.com/guide/preview/prvw11793/mac) · [Foxit PDF Editor](https://help.foxit.com/manuals/pdf-editor/mac/en-us/2026.1.0/Organize_PDF_Pages.html)
+
 ## 2026-11-23 阅读、页面与文件任务的横版缩略图
 
 每页缩略图按实际显示比例独立缩放，横竖混排时居中对齐，页码置于预览下方。840 px 展开为临时覆盖层，收起后回到 52 px 图标轨道。尺寸、状态和验收见[横版缩略图开发提示词](./landscape-thumbnails-development-prompt.md)。
@@ -101,7 +116,7 @@
 | [40 阅读内转换](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=61-10) | 与阅读页共用顶部和底部；右侧核对 PNG、JPEG、TXT、页范围、数量、名称与位置。 |
 | [41 搜索定位](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-2) · [47 待定位结果](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=72-2) | 左栏列出数量和片段；选择结果后在原页高亮。 |
 | [48 查找功能筛选](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=75-2) | 在当前 PDF 中输入“转换”后的命令筛选；PDF 内文字结果仍留在阅读左栏。 |
-| [42 页面网格](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-85) · [43 拆分任务](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-258) | 页面多选后就地操作；拆分在独立任务标签中预览第 3 页后生成的 3＋21 页。 |
+| [137 页面整理](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=301-5356) · [138 窄窗口](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=301-5464) · [43 拆分任务](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-258) | 当前 PDF 网格即时预览页面整理，拆分在独立任务标签中核对第 3 页后生成的 3＋21 页。 |
 | [44 扫描页 OCR](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-461) · [46 任务状态](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-681) | 无文字层时就地引导离线识别；覆盖密码、进度、失败、冲突和完成状态。 |
 | [45 窄窗口](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=69-611) | 840 px 下左栏收成图标轨道，文档、模式、搜索、页码与缩放仍可见。 |
 | [49 窄窗口 AI 侧栏](https://www.figma.com/design/IaCGBXWJCtRnWoOFba86RK?node-id=86-47) | 840 px 下 AI 临时覆盖文档右侧；关闭后恢复完整阅读宽度，不新增顶部标签。 |

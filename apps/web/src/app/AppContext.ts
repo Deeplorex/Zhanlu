@@ -38,9 +38,12 @@ export interface AppCtxValue {
   openAiForFile: (f: FileEntry, action?: "explain" | "translate") => void;
   /** 来源引用：切回阅读模式、定位原页并收起 Chat */
   gotoPage: (page: number) => void;
-  /** 页面模式存在未应用的整理变更（打印前提示用） */
+  /** 页面模式存在未应用的整理变更（打印前提示、关闭标签保护用） */
   pagesDirty: boolean;
   setPagesDirty: (dirty: boolean) => void;
+  /** 页面草稿已另存为新 PDF 且此后未再修改（底栏状态「已另存」） */
+  pagesSavedAs: boolean;
+  setPagesSavedAs: (saved: boolean) => void;
   readerJump: { id: string; page: number; key: number } | null;
   consumeReaderJump: () => void;
   /** 底栏左侧的上下文状态（如「已恢复第 N 页」「查找结果待定位」） */

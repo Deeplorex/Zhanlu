@@ -506,44 +506,155 @@
 .reader-password-dialog .input { width: 100%; }
 .reader-password-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
-/* ── 页面模式（42）─────────────────── */
-.pages-workspace { flex: 1; min-height: 0; display: flex; }
-.pages-card { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--z-line); border-radius: 8px; padding: 16px 24px; overflow: auto; }
-.pages-head { display: flex; align-items: baseline; gap: 16px; }
-.pages-head h2 { font-size: 17px; font-weight: 700; color: var(--z-ink); }
-.pages-note { color: var(--z-muted); font-size: 11px; }
-.pages-count { margin-left: auto; color: var(--z-accent); font-size: 12px; font-weight: 500; white-space: nowrap; }
-.pages-selection { display: flex; align-items: center; gap: 12px; min-height: 47px; padding: 0 14px; margin: 12px 0; background: var(--z-warm); border-radius: 8px; }
-.pages-sel-label { color: var(--z-ink); font-size: 12px; font-weight: 500; }
-.pages-sel-actions { margin-left: auto; display: flex; gap: 14px; }
-.pages-sel-actions button { border: 0; background: none; color: var(--z-accent); font-size: 12px; font-weight: 500; cursor: pointer; padding: 2px 0; }
-.pages-sel-actions button:hover { text-decoration: underline; }
-.pages-sel-actions button:disabled { opacity: .4; cursor: default; text-decoration: none; }
-/* 页面网格（131–132）：六列（840 下四列）等尺寸卡片 155×156，列间距 41（840：42）、行间距 15；列宽不足时等比收窄。
-   卡片内＝预览区＋固定 20 px 的页码行，页码始终在同一基线；横/竖/方页在预览区等比居中，纸张另有 1 px 边界。
-   待应用 90°/270° 时用容器宽高互换约束图片（.quarter，容器查询单位），旋转后的外接框仍落在预览区内；180° 不换。
-   选中/悬停框画在卡片边界（内阴影，对应 INSIDE 描边），卡片尺寸不随状态变化 */
-.pages-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 155px)); justify-content: center; gap: 15px 41px; align-content: start; padding: 8px 0 14px; flex: 1; }
-.pages-grid .pg { display: grid; grid-template-rows: minmax(0, 1fr) 20px; gap: 3px; aspect-ratio: 155 / 156; cursor: pointer; text-align: center; border: 0; border-radius: 6px; background: #fff; padding: 7px 12.5px 6px; box-shadow: inset 0 0 0 1px var(--z-line); outline: none; }
+/* ── 页面模式（06 改版 137–168）────────────────────────────
+   布局（137，1280 / 138，840）：工作区卡片内边距上下 18、左右 23（卡片描边 1 px 之内），
+   标题行 32、操作栏 48（上间距 14）、网格区 344（上间距 13，自身滚动）、底栏 43（上间距 12）。
+   页面草稿在切到阅读/转换后保留：进入过「页面」即保持挂载，其他模式下用 hidden 隐藏 */
+.pages-slot { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.pages-slot[hidden] { display: none; }
+.pages-workspace { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.pages-card { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--z-line); border-radius: 8px; padding: 18px 23px; }
+.pages-head { flex: none; position: relative; height: 32px; }
+.pages-head h2 { margin: 0; font-size: 17px; line-height: 20.4px; font-weight: 700; color: var(--z-ink); } /* 137：文字顶对齐于 32 px 标题行（中心约 y=195） */
+.pages-count { position: absolute; top: 6px; right: 0; color: var(--z-accent); font-size: 12px; line-height: 14.4px; font-weight: 400; white-space: nowrap; }
+/* 常驻操作栏：左侧选区说明，右侧八个动作。插入页随时可用（白底描边），其余按选区与边界启用；
+   按钮固定 66×36、间距 4，不随文案长短收缩；禁用为 45% 不透明度 */
+.pages-actions { flex: none; display: flex; align-items: center; height: 48px; margin-top: 14px; padding: 0 12px 0 14px; background: var(--z-warm); border-radius: 8px; }
+.pages-actions-label { display: flex; flex-direction: column; justify-content: center; row-gap: 1px; min-width: 0; font-size: 12px; line-height: 18px; color: var(--z-ink); } /* 两行的全选说明行间 1 px（156） */
+.pages-actions-label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pages-actions-label span:only-child { position: relative; top: -1px; } /* 单行时距栏顶 14（137）；两行的全选说明整体居中（156） */
+.pages-actions-note { color: var(--z-error); }
+.pages-actions-buttons { margin-left: auto; display: flex; gap: 4px; flex: none; }
+.pgtool { width: 66px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--z-text); font-size: 14px; font-weight: 500; font-family: inherit; white-space: nowrap; cursor: pointer; }
+.pgtool:hover:not(:disabled) { background: rgba(43, 38, 34, .06); }
+.pgtool.always { background: #fff; border: 1px solid var(--z-line); }
+.pgtool.always:hover:not(:disabled) { background: var(--z-canvas); }
+.pgtool:disabled { opacity: .45; cursor: default; }
+.pgtool:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+/* 页面网格（131–132 尺寸与旋转预览；137–168 页码与状态）：六列（840 下四列）等尺寸卡片 155×156，
+   列间距 41（840：42）、行间距 15；列宽不足时等比收窄。
+   卡片内＝预览区 130×120 + 1 px + 页码行 18（上 7、下 10），页码始终在同一基线；横/竖/方页在预览区等比居中，
+   纸张另有 1 px 边界。待应用 90°/270° 时用容器宽高互换约束图或纸（.quarter，容器查询单位），旋转后的外接框仍落在预览区内；
+   180° 不换。选中框 1 px 画在卡片边界（内阴影，对应 INSIDE 描边），焦点环 2 px；卡片尺寸不随状态变化。
+   网格区左右各多留 8 px（负外边距），行首行尾的拖动落点条有位置可放 */
+.pages-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 13px -8px 0; padding: 6px 8px 0; }
+.pages-grid { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 155px)); justify-content: center; gap: 15px 41px; align-content: start; }
+.pages-grid .pg { display: grid; grid-template-rows: minmax(0, 1fr) 18px; gap: 1px; aspect-ratio: 155 / 156; cursor: pointer; text-align: center; user-select: none; -webkit-user-select: none; border: 0; border-radius: 6px; background: #fff; padding: 7px 12.5px 10px; box-shadow: inset 0 0 0 1px var(--z-line); outline: none; }
 .pages-grid .pg:hover { box-shadow: inset 0 0 0 1px var(--z-accent); }
 .pages-grid .pg.on { box-shadow: inset 0 0 0 1px var(--z-accent); }
-.pages-grid .pg:focus-visible { outline: 2px solid var(--z-accent); outline-offset: 2px; }
+.pages-grid .pg:focus { box-shadow: inset 0 0 0 2px var(--z-accent); }
 .pages-grid .pg .box { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; container-type: size; }
 .pages-grid .pg .box img { display: block; flex: none; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; outline: 1px solid var(--z-line); outline-offset: -1px; }
 .pages-grid .pg .box img.quarter { max-width: 100cqh; max-height: 100cqw; }
-.pages-grid .pg .no { font-size: 11px; line-height: 20px; color: var(--z-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pages-grid .pg.on .no { color: var(--z-accent); font-weight: 700; }
-.pages-grid .pg .no small { margin-left: 4px; color: var(--z-accent); }
-.pages-summary { display: flex; align-items: center; gap: 12px; min-height: 47px; padding: 0 14px; padding-right: 84px; background: var(--z-warm); border-radius: 8px; color: var(--z-ink); font-size: 12px; }
-.pages-summary.busy { color: var(--z-muted); }
-.pages-summary-actions { margin-left: auto; display: flex; gap: 14px; }
-.pages-summary-actions button { border: 0; background: none; color: var(--z-accent); font-size: 12px; cursor: pointer; padding: 2px 0; }
-.pages-summary-actions button.accent { font-weight: 500; }
-.pages-summary-actions button:hover { text-decoration: underline; }
-.pages-save-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(43, 38, 34, .38); display: grid; place-items: center; padding: 20px; }
-.pages-save { width: min(480px, 100%); max-height: 86vh; overflow: auto; background: #fff; border-radius: 12px; box-shadow: 0 24px 80px rgba(43, 38, 34, .25); padding: 24px; display: flex; flex-direction: column; gap: 12px; }
-.pages-save h2 { font-size: 19px; font-weight: 700; color: var(--z-ink); }
-.pages-save-sub { color: var(--z-muted); font-size: 12.5px; line-height: 1.6; }
+/* 空白页：按登记的纸张比例画一张白纸（166），适配规则与缩略图相同 */
+.pages-grid .pg .box .paper { display: block; flex: none; height: 100%; aspect-ratio: var(--ar); max-width: 100%; background: #fff; outline: 1px solid var(--z-line); outline-offset: -1px; }
+.pages-grid .pg .box .paper.quarter { max-width: 100cqh; max-height: 100cqw; }
+.pages-grid .pg .no { font-size: 12px; line-height: 18px; font-weight: 400; color: var(--z-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pages-grid .pg.on .no, .pages-grid .pg:focus .no { color: var(--z-accent); }
+/* 拖动落点（168）：3 px 铜色圆头竖条，位于落点两侧卡片之间 */
+.pg-drop { position: absolute; width: 3px; border-radius: 4px; background: var(--z-accent); pointer-events: none; z-index: 2; }
+/* 底栏（137）：左侧变更摘要，右侧 撤销 74 / 取消变更 80 / 应用并另存 194，间距 6；
+   底栏右缘比内容区短 72 px，避让右下 AI 气泡（1280 与 840 相同） */
+.pages-foot { flex: none; display: flex; align-items: center; gap: 12px; height: 43px; margin: 12px 72px 0 0; padding: 0 8px 0 12px; background: var(--z-warm); border-radius: 8px; }
+.pages-foot-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 18px; color: var(--z-text); }
+.pages-foot-summary.idle { color: var(--z-muted); }
+.pages-foot-actions { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.pgfoot { height: 36px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--z-text); font-size: 14px; font-weight: 500; font-family: inherit; white-space: nowrap; cursor: pointer; }
+.pgfoot:hover:not(:disabled) { background: rgba(43, 38, 34, .06); }
+.pgfoot:disabled { opacity: .45; cursor: default; }
+.pgfoot:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+.pgfoot.undo { width: 74px; }
+.pgfoot.outlined { width: 80px; background: #fff; border: 1px solid var(--z-line); }
+.pgfoot.outlined:hover:not(:disabled) { background: #fff; border-color: var(--z-accent); }
+.pgfoot.primary { width: 194px; background: var(--z-ink); color: #fff; }
+.pgfoot.primary:hover:not(:disabled) { background: var(--z-ink); opacity: .9; }
+
+/* ── 页面整理弹窗（139 / 143 / 147 / 157–160 / 165）──────────────
+   遮罩墨色 38%；弹窗 520 宽、圆角 12、白底描边，内边距上 19、左右与下 23（描边之内）。
+   标题 18/700 行高 28；上下文 12 行高 18、距标题 7；分隔线之下 12 为按钮行（取消 112×36 描边 + 主按钮 152×36 墨底，间距 8） */
+.dlg-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(43, 38, 34, .38); display: grid; place-items: center; padding: 20px; }
+.dlg { width: min(520px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: #fff; border: 1px solid var(--z-line); border-radius: 12px; padding: 19px 23px 23px; }
+.dlg-title { margin: 0; font-size: 18px; line-height: 28px; font-weight: 700; color: var(--z-ink); }
+.dlg-context { margin: 7px 0 0; font-size: 12px; line-height: 18px; color: var(--z-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dlg-save .dlg-context { white-space: normal; }
+.dlg-form { display: block; }
+.dlg-divider { height: 1px; background: var(--z-line); }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 11px; } /* 画板中按钮行距分隔线顶边 12（线高 1） */
+.dlg-btn { width: 112px; height: 36px; padding: 0; border: 1px solid var(--z-line); border-radius: 8px; background: #fff; color: var(--z-text); font-size: 14px; font-weight: 500; font-family: inherit; white-space: nowrap; cursor: pointer; }
+.dlg-btn:hover:not(:disabled) { border-color: var(--z-accent); }
+.dlg-btn:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+.dlg-btn.primary { width: 152px; background: var(--z-ink); border-color: var(--z-ink); color: #fff; }
+.dlg-btn.primary:hover:not(:disabled) { background: var(--z-ink); border-color: var(--z-ink); opacity: .9; }
+.dlg-btn:disabled { opacity: .45; cursor: default; }
+/* 字段：标签 12/18，输入与选择框 472×32、圆角 8、左右内边距 10（与转换右栏同规格） */
+.dlg-form .cfield { margin: 0; }
+.dlg-input { display: block; width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--z-line); border-radius: 8px; background: #fff; color: var(--z-text); font-size: 12px; line-height: 18px; font-family: inherit; outline: none; }
+.dlg-input:focus { border-color: var(--z-accent); box-shadow: inset 0 0 0 1px var(--z-accent); }
+.dlg-input::placeholder { color: var(--z-muted); }
+.dlg-input:disabled { color: var(--z-muted); background: var(--z-canvas); cursor: default; }
+/* 选择框：当前项文案后紧跟箭头；原生 select 透明覆盖其上 */
+.dlg-select { position: relative; display: flex; align-items: center; width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--z-line); border-radius: 8px; background: #fff; color: var(--z-text); font-size: 12px; line-height: 18px; }
+.dlg-select .val { white-space: pre; }
+.dlg-select .caret { margin-left: 9px; color: var(--z-text); }
+.dlg-select select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.dlg-select:focus-within { border-color: var(--z-accent); box-shadow: inset 0 0 0 1px var(--z-accent); }
+/* 来源／位置行：输入框样式的只读框，右侧叠放文字按钮（更换 58×36，距右 8） */
+.dlg-source { position: relative; }
+.dlg-box { height: 32px; padding: 0 76px 0 10px; border: 1px solid var(--z-line); border-radius: 8px; background: #fff; color: var(--z-text); font-size: 12px; line-height: 30px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dlg-box.two { padding-right: 200px; }
+.dlg-save .dlg-box { padding-right: 104px; } /* 147：右侧为 92 宽的「选择位置／更改」 */
+.dlg-ghost { position: absolute; top: -3px; width: 92px; height: 36px; padding: 0; border: 0; /* 147：选择位置／更改 92×36，宽度不随文案变化 */ border-radius: 8px; background: none; color: var(--z-text); font-size: 14px; font-weight: 500; font-family: inherit; white-space: nowrap; cursor: pointer; }
+.dlg-ghost:hover:not(:disabled) { background: var(--z-canvas); }
+.dlg-ghost:focus-visible { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+.dlg-ghost:disabled { opacity: .45; cursor: default; }
+.dlg-ghost.narrow { width: 58px; } /* 139：选择／更换 58×36 */
+.dlg-ghost.right { right: 8px; }
+.dlg-ghost.left-of-right { right: 104px; }
+/* 反馈行与说明行 12/18；错误用警示红 */
+.dlg-feedback, .dlg-note { margin: 0; font-size: 12px; line-height: 18px; color: var(--z-muted); overflow-wrap: anywhere; }
+.dlg-feedback.error, .dlg-note.error { color: var(--z-error); }
+/* 来源二选一（139/165）：两段等宽 232×32、间距 8；选中段铜色描边、圆点实心、文字铜色 */
+.dlg-seg { display: flex; gap: 8px; }
+.dlg-seg-opt { position: relative; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; height: 32px; border: 1px solid var(--z-line); border-radius: 8px; background: #fff; color: var(--z-text); font-size: 12px; line-height: 18px; cursor: pointer; }
+.dlg-seg-opt i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--z-muted); box-sizing: border-box; flex: none; }
+.dlg-seg-opt.on { border-color: var(--z-accent); color: var(--z-accent); }
+.dlg-seg-opt.on i { border-color: var(--z-accent); background: var(--z-accent); }
+.dlg-seg-opt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.dlg-seg-opt:has(input:focus-visible) { outline: 2px solid var(--z-accent); outline-offset: -1px; }
+/* 移动预览（143）：暖白底 42 高，文字距上 11、左右 12 */
+.dlg-banner { padding: 11px 12px 13px; border-radius: 8px; background: var(--z-canvas); color: var(--z-text); font-size: 12px; line-height: 18px; }
+/* 生成进度（158）：暖白底 76 高；标题行 14/500，其下剑形进度 344×32 */
+.dlg-block { border-radius: 8px; background: var(--z-canvas); }
+.dlg-progress { padding: 13px 16px 8px; }
+.dlg-progress-head { display: flex; justify-content: space-between; gap: 12px; height: 22px; font-size: 14px; line-height: 22px; font-weight: 500; color: var(--z-text); }
+.dlg-sword { width: 344px; max-width: 100%; margin-top: 1px; }
+/* 失败与完成（159/160）：暖白底 70 高；标题行 14/500（警示红／成功绿），说明 12 灰 */
+.dlg-result { padding: 12px 16px 13px; display: flex; flex-direction: column; }
+.dlg-result-title { font-size: 14px; line-height: 22px; font-weight: 500; color: var(--z-text); }
+.dlg-result-title.error { color: var(--z-error); }
+.dlg-result-title.ok { color: var(--z-success); }
+.dlg-result-detail { margin-top: 5px; font-size: 12px; line-height: 18px; color: var(--z-muted); overflow-wrap: anywhere; }
+/* 各弹窗的纵向节奏（按画板逐项量取） */
+.dlg-insert .dlg-seg { margin-top: 13px; }
+.dlg-insert .cfield { margin-top: 12px; }
+.dlg-insert .dlg-seg + .cfield { margin-top: 14px; }
+.dlg-insert .dlg-feedback { margin-top: 6px; }
+.dlg-insert .dlg-divider { margin-top: 18px; }
+.dlg-insert:has(.dlg-seg-opt:first-child.on) .dlg-feedback { margin-top: 11px; }
+.dlg-insert:has(.dlg-seg-opt:first-child.on) .dlg-divider { margin-top: 21px; }
+.dlg-move .cfield { margin-top: 17px; }
+.dlg-move .dlg-banner { margin-top: 13px; }
+.dlg-move .dlg-divider { margin-top: 13px; }
+.dlg-save .cfield { margin-top: 12px; }
+.dlg-save .dlg-context + .dlg-form .cfield:first-child { margin-top: 21px; }
+.dlg-save .dlg-note { margin-top: 17px; }
+.dlg-save .dlg-divider { margin-top: 33px; }
+.dlg-running .dlg-block { margin-top: 18px; }
+.dlg-running .dlg-divider { margin-top: 31px; }
+.dlg-result-state .dlg-block { margin-top: 18px; }
+.dlg-result-state .dlg-divider { margin-top: 37px; }
+
+/* 任务与转换面板共用的按钮行（拆分、合并、转换、OFD 另存）：右对齐、间距 8；页面整理的底栏与弹窗使用各自的类 */
 .pages-save-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ── 阅读内转换右栏（06 改版 107–109）──────────────────────
@@ -931,7 +1042,8 @@
   .settings-nav button { flex: 1; align-items: center; text-align: center; padding: 10px 8px; }
   .settings-nav button small { display: none; }
   .remote-conn { flex-direction: column; align-items: stretch; }
-  .pages-grid { grid-template-columns: repeat(4, minmax(0, 155px)); column-gap: 42px; } /* 132：840 下四列 */
+  .pages-scroll { margin-left: 0; margin-right: 0; padding: 0; } /* 138：网格区占满内容宽，卡片自左缘、自操作栏下 13 px 排起 */
+  .pages-grid { grid-template-columns: repeat(4, minmax(0, 155px)); column-gap: 42px; justify-content: start; } /* 132：840 下四列 */
   /* 840 转换右栏 298（Figma 66），气泡/Chat 移到面板左侧 16 */
   .convert-panel { width: 298px; }
   .fmt-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }

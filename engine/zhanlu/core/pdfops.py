@@ -31,6 +31,11 @@ class OpError(Exception):
 
 # ---------- 页码规格 ----------
 
+# 区间连字符：半角连字符，以及输入法常见的几种横线（‐‑‒–—、−、－）。
+# 应用自己展示的页范围用「–」，用户照着输入或用中文输入法键入时不应被判为无法识别。
+_RANGE_DASH = r"[-\u2010-\u2014\u2212\uff0d]"
+
+
 def parse_pages(spec: str | None, total: int) -> list[int] | None:
     """'1-3,5,8-' → [0,1,2,4,7,...]（0-based，保持给定顺序，去重）。None/空 → None 表示全部。"""
     if spec is None or not str(spec).strip():
@@ -41,7 +46,7 @@ def parse_pages(spec: str | None, total: int) -> list[int] | None:
         token = token.strip()
         if not token:
             continue
-        m = re.fullmatch(r"(\d+)\s*-\s*(\d*)", token)
+        m = re.fullmatch(rf"(\d+)\s*{_RANGE_DASH}\s*(\d*)", token)
         if m:
             start = int(m.group(1))
             end = int(m.group(2)) if m.group(2) else total
@@ -247,26 +252,68 @@ def split(path: Path, out_dir: Path, mode: str, *, boundary: int = 1, every: int
     return outs
 
 
-# ---------- 页面整理（重排 + 旋转 + 删除，一个计划一次成文） ----------
+# ---------- 页面整理（插入 / 复制 / 移动 / 旋转 / 删除，一个计划一次成文） ----------
+
+# PDF 用户单元上限 14400 pt（200 英寸）；空白页尺寸取整到 0.1 pt
+_BLANK_MIN_PT = 1.0
+_BLANK_MAX_PT = 14400.0
+
+
+def _plan_rotate(item: dict) -> int:
+    """待应用旋转：90 的倍数，归一到 0/90/180/270。"""
+    try:
+        rot = int(item.get("rotate") or 0)
+    except (TypeError, ValueError) as exc:
+        raise OpError("旋转角度必须是 90 的倍数") from exc
+    if rot % 90 or not (-360 < rot < 360):
+        raise OpError("旋转角度必须是 90 的倍数")
+    return rot % 360
+
 
 def organize_plan_check(total: int, plan: list[dict]) -> dict:
-    """plan: [{page:1-based 原页号, rotate:0|90|180|270}]。返回摘要；非法时抛 OpError。"""
-    if not plan:
+    """校验页面计划并给出摘要；非法时抛 OpError。预览与生成共用。
+
+    plan 每项三选一（位置即数组顺序，同一源页可出现多次＝副本）：
+      {page, rotate}                        目标文档第 page 页（1-based；既有格式）
+      {file, page, rotate}                  已登记导入 PDF（文件 id）的第 page 页
+      {blank: true, width, height, rotate}  空白页，尺寸单位 pt
+    导入源的页号、可读性与提取权限不在本函数范围内（见 organize_resolve）。
+    """
+    if not isinstance(plan, list) or not plan:
         raise OpError("至少保留一页")
     seen: set[int] = set()
-    rotations = []
-    for item in plan:
+    rotations: list[tuple[int, int]] = []  # (新文档中的位置 1-based, 角度)
+    imported = blanks = copies = 0
+    for pos, item in enumerate(plan, 1):
+        if not isinstance(item, dict):
+            raise OpError("页面计划无效")
+        rot = _plan_rotate(item)
+        if rot:
+            rotations.append((pos, rot))
+        if item.get("blank") is True:
+            for key in ("width", "height"):
+                try:
+                    value = float(item.get(key))
+                except (TypeError, ValueError) as exc:
+                    raise OpError("空白页尺寸无效") from exc
+                if not (_BLANK_MIN_PT <= value <= _BLANK_MAX_PT):
+                    raise OpError(f"空白页尺寸需在 {_BLANK_MIN_PT:g}–{_BLANK_MAX_PT:g} pt 之间")
+            blanks += 1
+            continue
         page = item.get("page")
-        if not isinstance(page, int) or not (1 <= page <= total) or page in seen:
-            raise OpError(f"页面计划无效：第 {page} 页缺失或重复")
+        if not isinstance(page, int) or isinstance(page, bool) or page < 1:
+            raise OpError("页面计划无效：页码必须是正整数")
+        if item.get("file"):
+            imported += 1
+            continue
+        if page > total:
+            raise OpError(f"页面计划无效：第 {page} 页超出范围（文档共 {total} 页）")
+        if page in seen:
+            copies += 1
         seen.add(page)
-        rot = int(item.get("rotate") or 0)
-        if rot % 90 or not (-360 < rot < 360):
-            raise OpError("旋转角度必须是 90 的倍数")
-        if rot % 360:
-            rotations.append((page, rot % 360))
     dropped = sorted(set(range(1, total + 1)) - seen)
-    return {"count": len(plan), "rotations": rotations, "dropped": dropped}
+    return {"count": len(plan), "rotations": rotations, "dropped": dropped,
+            "imported": imported, "blanks": blanks, "copies": copies}
 
 
 def require_organize_permission(path: Path, password: str | None = None) -> None:
@@ -282,17 +329,113 @@ def require_organize_permission(path: Path, password: str | None = None) -> None
         raise OpError("该 PDF 限制修改或页面整理，无法保存整理结果。")
 
 
-def organize(path: Path, plan: list[dict], out: Path, password: str | None = None) -> Path:
+def require_extract_permission(path: Path, password: str | None = None) -> None:
+    """导入源未允许提取（复制内容）或组装时不从中取页。"""
+    from pypdf.constants import UserAccessPermissions
+
+    reader = _reader(path, password)
+    permissions = reader.user_access_permissions
+    if permissions is not None and (
+        not permissions & UserAccessPermissions.EXTRACT or
+        not permissions & UserAccessPermissions.ASSEMBLE_DOC
+    ):
+        raise OpError(f"{Path(path).name} 禁止提取页面，无法从中插入。")
+
+
+def import_probe(path: Path) -> dict:
+    """导入源可用性探测（插入弹窗就近反馈）：能打开、页数、是否允许提取。从不抛错。"""
+    try:
+        reader = _reader(path)
+        total = len(reader.pages)
+        if total < 1:
+            return {"ok": False, "pages": None, "error": "该 PDF 没有页面"}
+        from pypdf.constants import UserAccessPermissions
+
+        permissions = reader.user_access_permissions
+        if permissions is not None and (
+            not permissions & UserAccessPermissions.EXTRACT or
+            not permissions & UserAccessPermissions.ASSEMBLE_DOC
+        ):
+            return {"ok": False, "pages": total, "error": "该 PDF 禁止提取页面"}
+        return {"ok": True, "pages": total, "error": None}
+    except OpError as exc:
+        return {"ok": False, "pages": None, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 — 损坏等任何读取失败都归为不可用
+        return {"ok": False, "pages": None, "error": f"无法读取该 PDF（{type(exc).__name__}）"}
+
+
+def organize_resolve(plan: list[dict], lookup) -> list[dict]:
+    """把计划解析为可执行序列，逐项核验来源：
+      目标文档页 → {"path", "index"(0-based), "rotate"}
+      导入 PDF 页 → 同上，path 为导入源
+      空白页     → {"blank": (width, height), "rotate"}
+    lookup(file_id) -> (Path, 总页数)；导入源在此核验可读性、页号与提取权限。
+    """
+    totals: dict[str, int] = {}
+    resolved: list[dict] = []
+    for item in plan:
+        rot = _plan_rotate(item)
+        if item.get("blank") is True:
+            resolved.append({"blank": (float(item["width"]), float(item["height"])), "rotate": rot})
+            continue
+        page = item.get("page")
+        if item.get("file"):
+            fid = str(item["file"])
+            if fid not in totals:
+                source_path, source_total = lookup(fid)
+                require_extract_permission(source_path)
+                totals[fid] = (source_path, source_total)
+            source_path, source_total = totals[fid]
+            if not isinstance(page, int) or not (1 <= page <= source_total):
+                raise OpError(f"导入页码超出范围：第 {page} 页（该 PDF 共 {source_total} 页）")
+            resolved.append({"path": source_path, "index": page - 1, "rotate": rot})
+        else:
+            resolved.append({"path": None, "index": page - 1, "rotate": rot})
+    return resolved
+
+
+def organize(path: Path, plan: list[dict], out: Path, password: str | None = None,
+             imports: dict[str, Path] | None = None, progress=None, check=None) -> Path:
+    """按计划生成新 PDF：复制与导入保留页面内容，再对每个实例单独应用旋转。
+    imports: {文件 id: 路径}（导入源）。progress(value, detail) 与 check() 供任务层汇报进度、响应取消。
+    写入前重新核验目标整理权限、导入源提取权限、页号与旋转。"""
     require_organize_permission(path, password)
     total = len(_reader(path, password).pages)
     organize_plan_check(total, plan)
-    indices = [item["page"] - 1 for item in plan]
-    _write_pages(path, indices, out, password, import_outline=False)
-    writer = PdfWriter(clone_from=str(out))
-    for dst_index, item in enumerate(plan):
-        rot = int(item.get("rotate") or 0) % 360
-        if rot:
-            writer.pages[dst_index].rotate(rot)
+
+    def lookup(fid: str) -> tuple[Path, int]:
+        source = (imports or {}).get(fid)
+        if source is None or not Path(source).exists():
+            raise OpError("导入源文件已不存在，请重新选择")
+        return Path(source), len(_reader(Path(source)).pages)
+
+    steps = organize_resolve(plan, lookup)
+    reader = _reader(path, password)
+    readers: dict[str, PdfReader] = {}
+    writer = PdfWriter()
+    for done, step in enumerate(steps, 1):
+        if check and done % 64 == 0:
+            check()
+        if "blank" in step:
+            writer.add_blank_page(width=step["blank"][0], height=step["blank"][1])
+            continue
+        source = step["path"] or path
+        if source != path:
+            source_reader = readers.get(str(source)) or _reader(source)
+            readers[str(source)] = source_reader
+        else:
+            source_reader = reader
+        writer.add_page(source_reader.pages[step["index"]])
+        if progress and done % 64 == 0:
+            progress(0.1 + 0.5 * done / len(steps), f"正在组装页面 {done}/{len(steps)}")
+    for position, step in enumerate(steps):
+        if step["rotate"]:
+            writer.pages[position].rotate(step["rotate"])
+    if check:
+        check()
+    if progress:
+        progress(0.65, "正在写入新文档")
+    out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "wb") as f:
         writer.write(f)
     return out

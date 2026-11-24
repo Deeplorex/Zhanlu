@@ -318,41 +318,67 @@ def run_merge(params: dict, ctx) -> dict:
 
 # ============================================================ 页面整理
 
-def preview_organize(params: dict) -> dict:
+def _organize_inputs(params: dict):
+    """预览与执行共用的整理核验：目标可整理、计划合法、导入源可读可提取、页号在范围内。
+    返回 (目标路径, 目标条目, 计划摘要, {导入文件 id: 路径})。"""
     p, entry = _entry_path(params.get("id"))
     pdfops.require_organize_permission(p)
     total = _pages_of(entry, p)
-    summary = pdfops.organize_plan_check(total, params.get("plan") or [])
+    plan = params.get("plan") or []
+    summary = pdfops.organize_plan_check(total, plan)
+    imports: dict[str, Path] = {}
+    totals: dict[str, int] = {}
+
+    def lookup(fid):
+        source, source_entry = _entry_path(fid)
+        if source_entry.get("kind") != "pdf":
+            raise pdfops.OpError(f"仅支持插入 PDF 页面：{source_entry['name']}")
+        imports[str(fid)] = source
+        totals[str(fid)] = _pages_of(source_entry, source)
+        return source, totals[str(fid)]
+
+    pdfops.organize_resolve(plan, lookup)
+    return p, entry, summary, imports
+
+
+def _organize_name(params: dict, entry: dict) -> str:
     name = _safe_name(str(params.get("name") or Path(entry["name"]).stem + "-整理.pdf"))
-    if not name.lower().endswith(".pdf"):
-        name += ".pdf"
+    return name if name.lower().endswith(".pdf") else name + ".pdf"
+
+
+def preview_organize(params: dict) -> dict:
+    _p, entry, summary, _imports = _organize_inputs(params)
     notes = [f"新文档 {summary['count']} 页"]
     if summary["rotations"]:
-        notes.append("旋转 " + "、".join(f"第{pg}页({rot}°)" for pg, rot in summary["rotations"][:6])
+        notes.append("旋转 " + "、".join(f"第{pos}页({rot}°)" for pos, rot in summary["rotations"][:6])
                      + ("…" if len(summary["rotations"]) > 6 else ""))
     if summary["dropped"]:
         notes.append("删除 " + ",".join(_page_list_summary(summary["dropped"])))
     return _preview_result(params.get("dir"),
-                           [{"name": name, "pages": summary["count"]}], "；".join(notes))
+                           [{"name": _organize_name(params, entry), "pages": summary["count"]}],
+                           "；".join(notes), sources=[entry])
 
 
 def run_organize(params: dict, ctx) -> dict:
-    p, entry = _entry_path(params.get("id"))
-    total = _pages_of(entry, p)
-    summary = pdfops.organize_plan_check(total, params.get("plan") or [])
-    name = _safe_name(str(params.get("name") or Path(entry["name"]).stem + "-整理.pdf"))
-    if not name.lower().endswith(".pdf"):
-        name += ".pdf"
-    d = _resolve_dir(params.get("dir"))
+    p, entry, summary, imports = _organize_inputs(params)
+    name = _organize_name(params, entry)
+    d = _resolve_dir(params.get("dir"), sources=[entry])
     _require_writable(d)
-    ctx.progress(0.2, "生成新文档")
+    ctx.progress(0.05, "读取页面")
     tmp_out = ctx.temp_root / name
-    pdfops.organize(p, params["plan"], tmp_out)
+
+    def prog(value, detail=""):
+        ctx.progress(value, detail)
+
+    # 生成前在核心层再核验一次（导入源在预览后可能被删除或替换）
+    pdfops.organize(p, params["plan"], tmp_out, imports=imports, progress=prog, check=ctx.check)
     ctx.check()
+    ctx.progress(0.92, "正在保存")
     entry_out = _deliver_numbered(tmp_out, d, name, ctx=ctx)
-    ctx.output(entry_out)
     store.set_pages(entry_out["id"], summary["count"])
-    return {"file": dict(entry_out, pages=summary["count"]), "summary": summary}
+    entry_out = dict(entry_out, pages=summary["count"])
+    ctx.output(entry_out)
+    return {"file": entry_out, "summary": summary}
 
 
 # ============================================================ PDF 转换

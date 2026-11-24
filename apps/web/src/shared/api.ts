@@ -101,6 +101,30 @@ export function pickPdfs(kind: "pdf" | "convert" = "pdf"): Promise<{ files: File
   return post("/api/sys/pick-pdfs", { kind });
 }
 
+/** 页面整理「从本机 PDF 插入」：单选一份 PDF 作为导入源（原生对话框，引擎登记真实路径） */
+export function pickSourcePdf(): Promise<{ files: FileEntry[]; errors: string[]; cancelled: boolean }> {
+  return post("/api/sys/pick-pdfs", { kind: "source" });
+}
+
+export interface ImportProbe {
+  ok: boolean;
+  pages: number | null;
+  error: string | null;
+  name: string | null;
+  /** 逐页显示尺寸 [宽, 高]（pt，已含页面旋转），取不到为 null */
+  sizes?: [number, number][] | null;
+}
+
+/** 导入源可用性：能打开、页数、是否允许提取（插入弹窗就近反馈） */
+export function importProbe(id: string): Promise<ImportProbe> {
+  return get(`/api/files/${id}/import-probe`);
+}
+
+/** 页范围解析，与预览、执行共用引擎的语法与校验；pages 为 null 表示全部页 */
+export function parsePages(id: string, pages: string): Promise<{ ok: boolean; pages: number[] | null; error?: string; total: number }> {
+  return post("/api/pages/parse", { id, pages });
+}
+
 export function openPath(payload: { id: string }): Promise<{ ok: boolean }> {
   return post("/api/sys/open-path", payload);
 }

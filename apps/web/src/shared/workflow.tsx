@@ -16,6 +16,8 @@ export function useJob(kind: string) {
   const [runError, setRunError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const seq = useRef(0);
+  /** 最近一次执行的最终结果（取消 / 失败 / 提交失败），供调用方按真实结果分支；ref 保证 await 之后立即可读 */
+  const outcome = useRef<{ status: Task["status"] | "submit-failed"; error: string | null } | null>(null);
 
   const refreshPreview = useCallback(async (p: Record<string, unknown>) => {
     const my = ++seq.current;
@@ -58,11 +60,13 @@ export function useJob(kind: string) {
       const finished = await waitTask(started.id, { onTick: (t) => { lastTask = t; setTask(t); } });
       setDone(finished);
       setTask(finished);
+      outcome.current = { status: finished.status, error: finished.error ?? null };
       if (finished.status === "error" || finished.status === "interrupted") {
         setRunError(finished.error || (finished.status === "interrupted" ? "任务中断，请重试。" : "任务失败，请重试。"));
       }
       return finished;
     } catch (e) {
+      outcome.current = { status: lastTask ? lastTask.status : "submit-failed", error: (e as Error).message };
       setRunError((e as Error).message);
       setTask(lastTask);
       return null;
@@ -89,7 +93,7 @@ export function useJob(kind: string) {
   return {
     params, update, setParams,
     preview, previewError,
-    task, done, busy, submitting, runError,
+    task, done, busy, submitting, runError, outcome,
     run, cancel, reset,
   };
 }

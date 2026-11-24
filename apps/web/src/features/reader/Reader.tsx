@@ -13,6 +13,7 @@ import type { ReaderConvertTarget } from "./ReaderConvertPanel";
 import ReaderConvertPanel from "./ReaderConvertPanel";
 import ReaderOfdPanel from "./ReaderOfdPanel";
 import PagesGrid from "../pages/PagesGrid";
+import { hasUnsavedDraft } from "../pages/draftStore";
 import { clamp, ContinuousPages, PageView } from "./PageViews";
 import ImmersiveLayer, { type ImmersiveMode } from "./ImmersiveLayer";
 
@@ -145,7 +146,7 @@ export default function Reader() {
   const {
     current: file, openFile, docMode, setDocMode, aiOpen, setAiOpen, aiTriggerRef, setSelection, openAiForFile, startTask,
     readerView, saveReaderView, readerJump, consumeReaderJump, docStatus, setDocStatus,
-    appInfo, refreshFiles, toast, pagesDirty,
+    appInfo, refreshFiles, toast, pagesDirty, pagesSavedAs,
   } = React.useContext(AppCtx);
 
   const [doc, setDoc] = useState<PDFDoc | null>(null);
@@ -580,12 +581,12 @@ export default function Reader() {
     } finally { printAbort.current = null; setPrinting(false); }
   }, [doc, file, toast]);
 
-  // 页面模式有未应用变更：打印前明确提示使用已保存版本（2026-10-26 基线）
+  // 从阅读和页面模式发起打印时都检查本文件保留的草稿。
   const requestPrint = useCallback(() => {
-    if (!doc || printing) return;
-    if (docMode === "pages" && pagesDirty) { setPrintConfirm(true); return; }
+    if (!doc || !file || printing) return;
+    if (hasUnsavedDraft(file.id)) { setPrintConfirm(true); return; }
     void doPrint();
-  }, [doc, printing, docMode, pagesDirty, doPrint]);
+  }, [doc, file, printing, doPrint]);
 
   useEffect(() => {
     const onPrint = (e: KeyboardEvent) => {
@@ -758,6 +759,10 @@ export default function Reader() {
 
   const readerBodyMode = docMode;
 
+  // 页面草稿（含撤销记录）在切到阅读/转换后保留：进入过「页面」即保持挂载，其他模式下隐藏
+  const [pagesMounted, setPagesMounted] = useState(false);
+  useEffect(() => { if (docMode === "pages" && !isOfd) setPagesMounted(true); }, [docMode, isOfd]);
+
   // 上下文工具组（2026-10-26 基线）：整组按窗口宽度居中，槽位固定，竖线分隔打印
   // OFD：无页面整理/转换 PDF 工具；阅读组不含 AI 与 OCR（引擎按 PDF 处理）
   const tools: React.ReactNode[] = !isOfd && readerBodyMode === "pages" ? [
@@ -831,9 +836,12 @@ export default function Reader() {
 
       {/* 主体 */}
       <div className="reader-body">
-        {readerBodyMode === "pages" ? (
-          <PagesGrid file={file} total={total} />
-        ) : (
+        {pagesMounted && !isOfd && (
+          <div className="pages-slot" hidden={readerBodyMode !== "pages"}>
+            <PagesGrid file={file} total={total} sizes={thumbSizes} />
+          </div>
+        )}
+        {readerBodyMode !== "pages" && (
           <>
             {!narrow || (narrow && sideOpen) ? (
               <SidePanel file={sideFile} tab={tab} sideOpen={sideOpen} onClose={closeSidePanel} passwordProtected={passwordProtected}
@@ -905,7 +913,8 @@ export default function Reader() {
       <footer className="reader-statusbar">
         <span className="sb-file" title={file.name}>{file.name}</span>
         <span className="sb-dot">·</span>
-        <span>已保存</span>
+        {/* 页面整理：有待应用变更 / 已另存为新 PDF；其余情况为已保存的原文件 */}
+        <span>{pagesDirty ? "有待应用变更" : pagesSavedAs ? "已另存" : "已保存"}</span>
         {(docStatus || restored) && <span className="sb-note">{docStatus || ""}</span>}
         {viewRotate ? <span className="sb-note">视图旋转 {viewRotate}°</span> : null}
         {info?.encrypted && <span className="badge danger">已加密</span>}
@@ -952,7 +961,7 @@ export default function Reader() {
       {printConfirm && (
         <div className="reader-password-backdrop">
           <div className="reader-password-dialog" role="dialog" aria-modal="true" aria-label="打印已保存版本">
-            <h2>页面模式有未应用的变更</h2>
+            <h2>当前 PDF 有未应用的页面变更</h2>
             <p className="reader-password-state">本次打印将使用已保存的原文件版本，未应用的整理变更不会进入打印内容。</p>
             <p className="reader-password-file" title={file.name}>{file.name}</p>
             <p className="note">如需打印整理后的页面，请先在页面模式「应用并另存为新 PDF」，再打印新文件。</p>

@@ -6,7 +6,7 @@ import Spine from "./Spine";
 import Home from "../features/home/Home";
 import Reader from "../features/reader/Reader";
 import { releaseUnlockedDocs } from "../features/reader/unlockedDocs";
-import PagesGrid from "../features/pages/PagesGrid";
+import { pruneDrafts } from "../features/pages/draftStore";
 import Convert from "../features/convert/Convert";
 import SplitTask from "../features/workflows/SplitTask";
 import MergeTask from "../features/workflows/MergeTask";
@@ -105,6 +105,7 @@ export default function App() {
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
   const [docStatus, setDocStatus] = useState<string | null>(null);
   const [pagesDirty, setPagesDirty] = useState(false);
+  const [pagesSavedAs, setPagesSavedAs] = useState(false);
   const [aiGuideOpen, setAiGuideOpen] = useState(false);
   const aiTriggerRef = useRef<HTMLElement | null>(null);
   const [toasts, setToasts] = useState<{ id: number; msg: string; err?: boolean }[]>([]);
@@ -126,6 +127,11 @@ export default function App() {
   // 已解锁的加密文档只在标签页打开期间留在内存：标签关闭即销毁（密码从不落盘）
   useEffect(() => {
     releaseUnlockedDocs(new Set(tabs.map((t) => t.id)));
+  }, [tabs]);
+
+  // 页面整理草稿同理：标签关闭后不再保留该文件的未应用变更
+  useEffect(() => {
+    pruneDrafts(new Set(tabs.map((t) => t.id)));
   }, [tabs]);
 
   const toast = useCallback((msg: string, err = false) => {
@@ -324,7 +330,7 @@ export default function App() {
   }, [current?.id, saveReaderView]);
 
   // 切换文档后跟随新文档会话：上一份的未应用页面变更不带入
-  useEffect(() => { setPagesDirty(false); }, [current?.id]);
+  useEffect(() => { setPagesDirty(false); setPagesSavedAs(false); }, [current?.id]);
 
   /** AI 始终属于当前 PDF：激活/建立该 PDF 标签后展开右侧 Chat 浮层，不新建任务标签、不改变当前模式 */
   const openAiForFile = useCallback((f: FileEntry, action?: "explain" | "translate") => {
@@ -355,7 +361,8 @@ export default function App() {
     taskSeed: activeTaskTab?.seed || null, startTask, setTaskTabTitle, taskTabs,
     activeTaskTabId: hashState.taskId, taskTabId: null, switchTaskTab, closeTaskTab,
     readerView, saveReaderView, docMode, setDocMode, aiOpen, setAiOpen,
-    aiGuideOpen, setAiGuideOpen, aiTriggerRef, openAiForFile, gotoPage, pagesDirty, setPagesDirty,
+    aiGuideOpen, setAiGuideOpen, aiTriggerRef, openAiForFile, gotoPage,
+    pagesDirty, setPagesDirty, pagesSavedAs, setPagesSavedAs,
     readerJump, consumeReaderJump, docStatus, setDocStatus, toast,
     selection, setSelection,
   };

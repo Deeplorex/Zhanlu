@@ -5,6 +5,7 @@ import { openRegistered, pickPdfsNative } from "../shared/nativeOpen";
 import Icon, { type IconName } from "../shared/Icon";
 import SwordProgress, { swordPct } from "../shared/SwordProgress";
 import type { DocMode, FileEntry, Task, TaskStatus } from "../shared/types";
+import { hasUnsavedDraft } from "../features/pages/draftStore";
 
 export const STATUS_TEXT: Record<TaskStatus, string> = {
   running: "运行中",
@@ -172,8 +173,14 @@ export default function Spine({ route }: { route: string }) {
     btn.scrollIntoView({ block: "nearest" });
   }, [showAllTabs, allIdx]);
 
+  /** 待关闭的 PDF 标签里留着未应用页面整理变更的那些：当前标签看实时状态，
+   *  其他标签看草稿仓库（草稿在切走后仍保留）。关闭前须先确认。 */
+  const unsavedAmong = (pdfIds: string[]) =>
+    pdfIds.filter((id) => (id === current?.id && pagesDirty) || hasUnsavedDraft(id));
+
   /** 关闭后激活邻近标签并保持焦点可达 */
   const closePdfTab = (id: string) => {
+    if (unsavedAmong([id]).length) { setCloseConfirm({ pdfIds: [id], taskIds: [] }); return; }
     closeTab(id);
     setTimeout(() => {
       const strip = stripRef.current;
@@ -234,7 +241,7 @@ export default function Spine({ route }: { route: string }) {
     else return;
     const pdfIds = targets.filter((t) => t.kind === "pdf").map((t) => t.id);
     const taskIds = targets.filter((t) => t.kind === "task").map((t) => t.taskId!);
-    if (current && pagesDirty && pdfIds.includes(current.id)) {
+    if (unsavedAmong(pdfIds).length) {
       setCloseConfirm({ pdfIds, taskIds });
       setCtxMenu(null);
       return;
@@ -635,7 +642,12 @@ export default function Spine({ route }: { route: string }) {
         <div className="finder-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setCloseConfirm(null); }}>
           <div className="reader-password-dialog" role="dialog" aria-modal="true" aria-label="关闭前确认">
             <h2>关闭前确认</h2>
-            <p className="reader-password-file">{current?.name} 有未应用的页面整理变更</p>
+            <p className="reader-password-file">{(() => {
+              const ids = unsavedAmong(closeConfirm.pdfIds);
+              if (ids.length !== 1) return `${ids.length} 个标签有未应用的页面整理变更`;
+              const name = files.find((f) => f.id === ids[0])?.name || current?.name || "";
+              return `${name} 有未应用的页面整理变更`;
+            })()}</p>
             <p className="note">关闭标签将丢弃这些变更，原 PDF 文件不受影响。如需保留整理结果，请先在页面模式「应用并另存为新 PDF」。</p>
             <div className="reader-password-actions">
               <button type="button" className="btn" onClick={() => setCloseConfirm(null)}>取消</button>
