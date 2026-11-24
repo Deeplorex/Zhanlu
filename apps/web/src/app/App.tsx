@@ -5,6 +5,7 @@ import type { AppInfo, DocMode, FileEntry, ReaderView, SelectionPayload, TaskKin
 import Spine from "./Spine";
 import Home from "../features/home/Home";
 import Reader from "../features/reader/Reader";
+import { releaseUnlockedDocs } from "../features/reader/unlockedDocs";
 import PagesGrid from "../features/pages/PagesGrid";
 import Convert from "../features/convert/Convert";
 import SplitTask from "../features/workflows/SplitTask";
@@ -121,6 +122,11 @@ export default function App() {
       return f && (f.path !== t.path || f.name !== t.name) ? { ...t, ...f } : t;
     }));
   }, [files]);
+
+  // 已解锁的加密文档只在标签页打开期间留在内存：标签关闭即销毁（密码从不落盘）
+  useEffect(() => {
+    releaseUnlockedDocs(new Set(tabs.map((t) => t.id)));
+  }, [tabs]);
 
   const toast = useCallback((msg: string, err = false) => {
     const id = Math.random();

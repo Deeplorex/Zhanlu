@@ -7,6 +7,7 @@ import { openRegistered, pickPdfsNative } from "../../shared/nativeOpen";
 import Icon from "../../shared/Icon";
 import SwordProgress, { swordRunningText } from "../../shared/SwordProgress";
 import { printPdf } from "./printPdf";
+import { keepUnlockedDoc, ownsUnlockedDoc, unlockedDoc } from "./unlockedDocs";
 import type { AiConfig, FileInfo, FileEntry, OutlineNode } from "../../shared/types";
 import type { ReaderConvertTarget } from "./ReaderConvertPanel";
 import ReaderConvertPanel from "./ReaderConvertPanel";
@@ -308,14 +309,20 @@ export default function Reader() {
         if (!cancelled) setInfo(r); // 迟到的旧文档响应不得覆盖当前文档（含逐页尺寸）
       }).catch(() => {});
     }
-    const task = pdfjs.getDocument({
-      url: rawUrl(viewFileId || file.id),
+    const docId = viewFileId || file.id;
+    // 已解锁的加密文档在标签页打开期间留在内存：切回同一标签直接复用，不再索取密码
+    const kept = unlockedDoc(docId);
+    let neededPassword = false;
+    const task = kept || pdfjs.getDocument({
+      url: rawUrl(docId),
       cMapUrl: new URL("cmaps/", document.baseURI).href, // 中文 CID 字体必需
       cMapPacked: true,
     } as never);
     loadingRef.current = task;
-    task.onPassword = (update: (pw: string) => void, reason: number) => {
+    if (kept) setPasswordProtected(true); // 缩略图仍由阅读器绘制（引擎接口没有密码）
+    else task.onPassword = (update: (pw: string) => void, reason: number) => {
       if (cancelled) return;
+      neededPassword = true;
       pwUpdateRef.current = update;
       setPasswordProtected(true);
       setPasswordValue("");
@@ -326,11 +333,17 @@ export default function Reader() {
       setDocErr(null);
       setDoc(d);
       setPageNum((p) => clamp(p, 1, d.numPages));
+      if (neededPassword) keepUnlockedDoc(docId, task);
     }).catch((e: unknown) => {
       if (cancelled || pwCancelled.current) return;
       setDocErr(String((e as Error)?.message || e));
     });
-    return () => { cancelled = true; pwCancelled.current = true; task.destroy?.(); };
+    return () => {
+      cancelled = true; pwCancelled.current = true;
+      // 已解锁的加密文档留给同一标签的下一次挂载；标签关闭时由 App 销毁
+      if (ownsUnlockedDoc(docId, task)) return;
+      task.destroy?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file?.id, viewFileId]);
 
