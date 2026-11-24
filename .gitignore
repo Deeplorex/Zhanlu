@@ -16,6 +16,7 @@ apps/desktop/static/startup.png
 
 # 本机数据与产物
 docs/design/*/shots/
+/docs/product/mvp-v1/evidence/page-organize/
 /tmp/
 .tmp-tests/
 test-files/
